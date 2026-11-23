@@ -1,5 +1,69 @@
 # pi-coderef
 
+Hand your [pi](https://pi.dev) agent a precise code reference instead of pasting code. Browse project files in the terminal, locate the exact lines visually, and insert an `@file:line` reference into your prompt — zero ambiguity about which code you mean.
+
+Built for the moments when you ask the agent to refactor a function, fix a bug in a specific block, or explain a few lines — just *point* at it.
+
+## Install
+
+```bash
+# From GitHub (pin a version with a tag)
+pi install git:github.com/examplecode/pi-coderef@v1
+
+# Or from npm
+pi install npm:pi-coderef@1.0.0
+```
+
+If you previously installed the extension manually, delete `~/.pi/agent/extensions/coderef.ts` to avoid loading it twice.
+
+## Usage
+
+Run **`/coderef`** in pi (or press **`Alt+P`**; `/pick` is an alias):
+
+| Key | Action |
+|-----|--------|
+| type | Fuzzy file search (case-insensitive; `fmt` matches `format.ts`) |
+| `↑↓` | Choose a file (highlighted selection) |
+| `Tab` | Complete to the full path and open it right away |
+| `Enter` | Open the highlighted file |
+| `j/k` `PgUp/PgDn` | Move the cursor in the code view |
+| `/` | Search inside the file: live jump, highlighted matches, `n`/`N` for next/previous |
+| `Alt+Enter` | While searching: accept the position and pin it with `◉` |
+| `space` | Mark the selection start / press again to fix the end (no mark = current line) |
+| `Enter` | Confirm → the reference is inserted into the prompt |
+| `Esc` | Go back / cancel, one level at a time |
+
+After confirming, the prompt gets appended with:
+
+```
+@src/utils/format.ts:121-122
+```
+
+Write your task after it (e.g. "refactor this"), press Enter, done. Run `/coderef` again to append more references.
+
+## Safety
+
+- Binary files are refused
+- Huge files load at most the first 5000 lines
+- Selections over 200 lines require a second confirmation
+
+## Development
+
+```bash
+npm install   # host packages, for tests only
+npm test      # 41 behavior tests
+```
+
+The extension only depends on pi's host-provided `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui`. No other runtime dependencies.
+
+## License
+
+MIT
+
+---
+
+# 中文说明
+
 给 [pi](https://pi.dev) 用的源码引用选择器：在终端里**浏览文件 → 定位代码 → 选中范围**，把精确的 `@file:line` 引用交给 agent —— 不用复制粘贴代码，上下文零歧义。
 
 适合的场景：让 agent 重构某段代码、修某个函数的 bug、解释某几行 —— 你只需要"指"给它看。
@@ -14,7 +78,7 @@ pi install git:github.com/examplecode/pi-coderef@v1
 pi install npm:pi-coderef@1.0.0
 ```
 
-卸载旧的手动安装（如有）：删除 `~/.pi/agent/extensions/coderef.ts`，避免重复加载。
+如果你之前手动安装过扩展，删除 `~/.pi/agent/extensions/coderef.ts` 以避免重复加载。
 
 ## 用法
 
