@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1] - 2026-11-23
+
+- Bilingual UI: English and Chinese prompts, selected from the system locale
+- Fix: code view now fits the terminal height so status lines are never cut off
+- Replace emoji markers that lack glyphs in common monospace fonts
+- Gallery preview media (`pi.image`, `pi.video`)
+
 ## [1.0.0] - 2026-11-23
 
 - Initial release

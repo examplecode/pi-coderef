@@ -15,11 +15,15 @@ import {
   listProjectFiles,
   createCachedLoader,
   createCodeRefPicker,
+  detectLanguage,
   type CodeRef,
 } from "../extensions/coderef.ts";
 import codeRefExtension from "../extensions/coderef.ts";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+// Existing assertions target the Chinese UI; pin the locale for the whole file.
+process.env.LANG = "zh_CN.UTF-8";
 
 async function waitReady(component: { render(width: number): string[] }) {
   for (let i = 0; i < 200; i++) {
@@ -350,7 +354,7 @@ test("tab completes and opens the highlighted file directly without another keyp
   runKeys(picker, [KEYMAP["tui.select.down"]]); // highlight bbb.ts
   runKeys(picker, [KEYMAP["tui.input.tab"]]); // complete + open
 
-  assert.ok(picker.render(80).some((line) => line.includes("📄 bbb.ts")));
+  assert.ok(picker.render(80).some((line) => line.includes("bbb.ts")));
   runKeys(picker, [KEYMAP["tui.select.confirm"]]); // confirm cursor line
   assert.equal(result?.path, "bbb.ts");
 });
@@ -573,6 +577,60 @@ test("leaving search with escape does not pin the position", async () => {
   runKeys(picker, ["/", "t", "h", "r", KEYMAP["tui.select.cancel"]]);
   assert.ok(!picker.render(80).some((line) => line.includes("◉")));
   assert.ok(!picker.render(80).some((line) => line.includes("已定位")));
+});
+
+test("code view fits the terminal height so status lines are never cut off", async () => {
+  const source = {
+    list: async () => ["a.ts"],
+    read: () => Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n"),
+  };
+  const shortTui = {
+    requestRender() {},
+    terminal: { rows: 24, columns: 80 },
+  };
+  const picker = createCodeRefPicker(shortTui, fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open
+  runKeys(picker, ["/", "l", "i", "n", "e", "\x1b\r"]); // search, then alt+enter pins the position
+
+  const rendered = picker.render(80);
+  assert.ok(rendered.length <= 24, `expected <= 24 lines, got ${rendered.length}`);
+  assert.ok(rendered.some((line) => line.includes("已定位")));
+  assert.ok(rendered.some((line) => line.includes("Enter 确认")));
+});
+
+// ---- localization ----
+
+test("detectLanguage picks Chinese for zh locales and English otherwise", () => {
+  assert.equal(detectLanguage({ LANG: "zh_CN.UTF-8" }), "zh");
+  assert.equal(detectLanguage({ LC_ALL: "zh_TW.UTF-8" }), "zh");
+  assert.equal(detectLanguage({ LANG: "en_US.UTF-8" }), "en");
+  assert.equal(detectLanguage({}), "en");
+});
+
+test("the picker renders English prompts in English environments", async () => {
+  process.env.LANG = "en_US.UTF-8";
+  try {
+    const source = {
+      list: async () => ["a.ts"],
+      read: () => "one\ntwo\nthree\n",
+    };
+    const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+    await waitReady(picker);
+
+    const fileView = picker.render(80).join("\n");
+    assert.ok(fileView.includes("File search"));
+    assert.ok(fileView.includes("Indexing") || !fileView.includes("索引"));
+
+    runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+    runKeys(picker, ["/", "t", "w", "\x1b\r"]);
+    const codeView = picker.render(80).join("\n");
+    assert.ok(codeView.includes("Located"));
+    assert.ok(codeView.includes("Selected"));
+  } finally {
+    process.env.LANG = "zh_CN.UTF-8";
+  }
 });
 
 // ---- extension wiring ----

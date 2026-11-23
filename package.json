@@ -1,6 +1,6 @@
 {
   "name": "pi-coderef",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Browse project files, locate code visually, and hand the pi agent a precise @file:line reference instead of pasting code.",
   "keywords": ["pi-package", "pi", "extension", "code-reference", "snippet"],
   "license": "MIT",
@@ -18,7 +18,9 @@
     "test": "node --test tests/coderef.test.ts"
   },
   "pi": {
-    "changelogPath": "./CHANGELOG.md"
+    "changelogPath": "./CHANGELOG.md",
+    "image": "https://raw.githubusercontent.com/examplecode/pi-coderef/main/docs/screenshot.png",
+    "video": "https://raw.githubusercontent.com/examplecode/pi-coderef/main/docs/demo.mp4"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*",

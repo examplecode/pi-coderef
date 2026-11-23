@@ -17,8 +17,8 @@ const MAX_FILE_LINES = 5000;
 const LARGE_SELECTION_LINES = 200;
 const SKIPPED_DIRS = new Set(["node_modules", ".git"]);
 const FILE_RESULTS_LIMIT = 15;
-const CODE_VIEW_LINES = 30;
 const PAGE_LINES = 20;
+const CODE_VIEW_CHROME = 7; // header + status lines + hint + margin
 
 // ---------------------------------------------------------------------------
 // Code references
@@ -42,6 +42,62 @@ export function appendRefToPrompt(promptText: string, codeRef: string): string {
   const base = promptText.replace(/\s+$/, "");
   return base ? `${base}\n\n${codeRef}` : codeRef;
 }
+
+export type Language = "en" | "zh";
+
+/** Picks the UI language from POSIX locale variables (Chinese when any is zh). */
+export function detectLanguage(env: Record<string, string | undefined>): Language {
+  const locale = [env.LC_ALL, env.LC_MESSAGES, env.LANG, env.LANGUAGE]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return locale.includes("zh") ? "zh" : "en";
+}
+
+const MESSAGES = {
+  en: {
+    fileSearchTitle: "/coderef - File search",
+    indexing: "Indexing files...",
+    cancelHint: "Esc cancel",
+    searchPrompt: "Search",
+    binaryError: (path: string) => `Cannot open ${path}: binary file`,
+    noFileMatch: "(no matching files)",
+    moreMatches: (n: number) => `... ${n} matches total`,
+    fileHint: "up/down choose · Tab complete+open · Enter open · Esc cancel",
+    truncatedNote: " (showing first 5000 lines)",
+    selected: (s: number, e: number, n: number) => `Selected ${s}-${e} (${n} lines)`,
+    located: (n: number) => `◉ Located: line ${n}`,
+    searchHint: "· Enter next · Alt+Enter pin · Esc exit",
+    noMatch: "(no match)",
+    largeWarn: (n: number) =>
+      `⚠ Selection over 200 lines (${n} total) - press Enter again to confirm`,
+    codeHint:
+      "j/k move · / search · n/N matches · PgUp/PgDn page · space mark · Enter confirm · Esc back",
+    added: (ref: string) => `Added ${ref}`,
+    needTui: "coderef requires interactive mode",
+  },
+  zh: {
+    fileSearchTitle: "/coderef ── 文件搜索",
+    indexing: "正在索引文件…",
+    cancelHint: "Esc 取消",
+    searchPrompt: "搜索",
+    binaryError: (path: string) => `无法打开 ${path}：二进制文件`,
+    noFileMatch: "(无匹配文件)",
+    moreMatches: (n: number) => `… 共 ${n} 个匹配`,
+    fileHint: "↑↓ 选择 · Tab 补全并打开 · Enter 打开 · Esc 取消",
+    truncatedNote: "（超过 5000 行，仅显示前 5000 行）",
+    selected: (s: number, e: number, n: number) => `已选 ${s}-${e} 行（${n} 行）`,
+    located: (n: number) => `◉ 已定位：第 ${n} 行`,
+    searchHint: "· Enter 下一个 · Alt+Enter 定位 · Esc 退出",
+    noMatch: "(无匹配)",
+    largeWarn: (n: number) =>
+      `⚠ 选区超过 200 行（共 ${n} 行），再按一次 Enter 确认发送`,
+    codeHint:
+      "j/k 移动 · / 搜索 · n/N 跳匹配 · PgUp/PgDn 翻页 · space 标记 · Enter 确认 · Esc 返回",
+    added: (ref: string) => `已添加 ${ref}`,
+    needTui: "coderef 需要在交互模式下使用",
+  },
+} as const;
 
 // ---------------------------------------------------------------------------
 // File search
@@ -254,12 +310,14 @@ export interface ThemeLike {
 }
 
 export function createCodeRefPicker(
-  tui: { requestRender(): void },
+  tui: { requestRender(): void; terminal?: { rows: number } },
   theme: ThemeLike,
   keybindings: { matches(data: string, action: string): boolean },
   done: (codeRef: CodeRef | undefined) => void,
   source: FileSource,
+  language: Language = detectLanguage(process.env),
 ): CodeRefPicker {
+  const msg = MESSAGES[language];
   const pendingFileList = Promise.resolve(source.list());
   let view: "files" | "code" = "files";
   let fileQuery = "";
@@ -296,7 +354,7 @@ export function createCodeRefPicker(
   const openFile = (filePath: string) => {
     const content = source.read(filePath);
     if (isBinaryContent(content)) {
-      fileError = `无法打开 ${filePath}：二进制文件`;
+      fileError = msg.binaryError(filePath);
       return;
     }
     const loaded = splitFileLines(content);
@@ -379,13 +437,13 @@ export function createCodeRefPicker(
   // -- rendering --
 
   const renderFileSearch = (width: number): string[] => {
-    const out: string[] = [theme.fg("accent", "/coderef ── 文件搜索")];
+    const out: string[] = [theme.fg("accent", msg.fileSearchTitle)];
     if (!filesReady) {
-      out.push(theme.fg("dim", "⏳ 正在索引文件…"));
-      out.push(theme.fg("dim", "Esc 取消"));
+      out.push(theme.fg("dim", msg.indexing));
+      out.push(theme.fg("dim", msg.cancelHint));
       return out.map((line) => truncateToWidth(line, width));
     }
-    out.push(`搜索 ▸ ${fileQuery}`);
+    out.push(`${msg.searchPrompt} ▸ ${fileQuery}`);
     if (fileError) out.push(theme.fg("dim", `⚠ ${fileError}`));
     const visible = matchedFiles.slice(0, FILE_RESULTS_LIMIT);
     for (let i = 0; i < visible.length; i++) {
@@ -393,10 +451,10 @@ export function createCodeRefPicker(
       out.push(i === selectedFileIndex ? theme.bold(theme.bg("selectedBg", row)) : row);
     }
     if (matchedFiles.length > visible.length) {
-      out.push(theme.fg("dim", `  … 共 ${matchedFiles.length} 个匹配`));
+      out.push(theme.fg("dim", `  ${msg.moreMatches(matchedFiles.length)}`));
     }
-    if (matchedFiles.length === 0) out.push(theme.fg("dim", "  (无匹配文件)"));
-    out.push(theme.fg("dim", "↑↓ 选择 · Tab 补全并打开 · Enter 打开 · Esc 取消"));
+    if (matchedFiles.length === 0) out.push(theme.fg("dim", `  ${msg.noFileMatch}`));
+    out.push(theme.fg("dim", msg.fileHint));
     return out.map((line) => truncateToWidth(line, width));
   };
 
@@ -405,14 +463,14 @@ export function createCodeRefPicker(
     const activeSearch = codeSearchActive ? codeSearchText : lastSearchText;
     const matchLines = new Set(findMatchLines(activeSearch));
     const out: string[] = [
-      theme.fg("accent", `📄 ${currentPath}`) +
-        (fileTruncated ? theme.fg("dim", " （超过 5000 行，仅显示前 5000 行）") : ""),
+      theme.fg("accent", currentPath) + (fileTruncated ? theme.fg("dim", msg.truncatedNote) : ""),
     ];
+    const visibleRows = Math.max(5, (tui.terminal?.rows ?? 30) - CODE_VIEW_CHROME);
     const firstVisible = Math.max(
       0,
-      Math.min(selection.cursor - 10, Math.max(0, codeLines.length - CODE_VIEW_LINES)),
+      Math.min(selection.cursor - 10, Math.max(0, codeLines.length - visibleRows)),
     );
-    const lastVisible = Math.min(codeLines.length, firstVisible + CODE_VIEW_LINES);
+    const lastVisible = Math.min(codeLines.length, firstVisible + visibleRows);
     for (let i = firstVisible; i < lastVisible; i++) {
       const marker =
         i === selection.cursor
@@ -429,30 +487,25 @@ export function createCodeRefPicker(
     out.push(
       theme.fg(
         "dim",
-        `已选 ${range.startLine + 1}-${range.endLine + 1} 行（${range.endLine - range.startLine + 1} 行）`,
+        msg.selected(range.startLine + 1, range.endLine + 1, range.endLine - range.startLine + 1),
       ),
     );
     if (locatedLine !== null) {
-      out.push(theme.fg("accent", `◉ 已定位：第 ${locatedLine + 1} 行`));
+      out.push(theme.fg("accent", msg.located(locatedLine + 1)));
     }
     if (codeSearchActive) {
       out.push(
-        theme.fg("accent", `搜索 ▸ ${codeSearchText}`) +
-          (noMatches ? theme.fg("dim", "  (无匹配)") : "") +
-          theme.fg("dim", "  · Enter 下一个 · Alt+Enter 定位 · Esc 退出"),
+        theme.fg("accent", `${msg.searchPrompt} ▸ ${codeSearchText}`) +
+          (noMatches ? theme.fg("dim", `  ${msg.noMatch}`) : "") +
+          theme.fg("dim", `  ${msg.searchHint}`),
       );
     } else if (lastSearchText) {
-      out.push(theme.fg("dim", `⌕ ${lastSearchText}${noMatches ? "  无匹配" : ""}`));
+      out.push(theme.fg("dim", `⌕ ${lastSearchText}${noMatches ? `  ${msg.noMatch}` : ""}`));
     }
     if (awaitingConfirm) {
-      out.push(
-        theme.fg(
-          "dim",
-          `⚠ 选区超过 ${LARGE_SELECTION_LINES} 行（共 ${range.endLine - range.startLine + 1} 行），再按一次 Enter 确认发送`,
-        ),
-      );
+      out.push(theme.fg("dim", msg.largeWarn(range.endLine - range.startLine + 1)));
     }
-    out.push(theme.fg("dim", "j/k 移动 · / 搜索 · n/N 跳匹配 · PgUp/PgDn 翻页 · space 标记 · Enter 确认 · Esc 返回"));
+    out.push(theme.fg("dim", msg.codeHint));
     return out.map((line) => truncateToWidth(line, width));
   };
 
@@ -588,7 +641,7 @@ interface PickerCommandContext {
   ui: {
     custom<T>(
       factory: (
-        tui: { requestRender(): void },
+        tui: { requestRender(): void; terminal?: { rows: number } },
         theme: ThemeLike,
         keybindings: { matches(data: string, action: string): boolean },
         done: (codeRef: T | undefined) => void,
@@ -613,8 +666,9 @@ function projectFileLoader(root: string): () => Promise<string[]> {
 
 export default function codeRefExtension(pi: ExtensionAPI): void {
   const runCodeRef = async (_args: string, ctx: PickerCommandContext): Promise<void> => {
+    const msg = MESSAGES[detectLanguage(process.env)];
     if (ctx.mode !== "tui") {
-      ctx.ui.notify("coderef 需要在交互模式下使用", "error");
+      ctx.ui.notify(msg.needTui, "error");
       return;
     }
     const root = ctx.cwd ?? process.cwd();
@@ -627,7 +681,7 @@ export default function codeRefExtension(pi: ExtensionAPI): void {
     if (!codeRef) return;
     const reference = formatCodeRef(codeRef.path, codeRef.startLine, codeRef.endLine);
     ctx.ui.setEditorText(appendRefToPrompt(ctx.ui.getEditorText(), reference));
-    ctx.ui.notify(`已添加 ${reference}`, "info");
+    ctx.ui.notify(msg.added(reference), "info");
   };
 
   const handler = (args: string, ctx: unknown) => runCodeRef(args, ctx as PickerCommandContext);
