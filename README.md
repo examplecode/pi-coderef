@@ -8,7 +8,7 @@
 
 ```bash
 # 从 GitHub（推荐，可用 tag 锁定版本）
-pi install git:github.com/<you>/pi-coderef@v1
+pi install git:github.com/examplecode/pi-coderef@v1
 
 # 或从 npm
 pi install npm:pi-coderef@1.0.0

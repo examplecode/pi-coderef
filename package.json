@@ -4,6 +4,15 @@
   "description": "Browse project files, locate code visually, and hand the pi agent a precise @file:line reference instead of pasting code.",
   "keywords": ["pi-package", "pi", "extension", "code-reference", "snippet"],
   "license": "MIT",
+  "author": "examplecode",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/examplecode/pi-coderef.git"
+  },
+  "homepage": "https://github.com/examplecode/pi-coderef#readme",
+  "bugs": {
+    "url": "https://github.com/examplecode/pi-coderef/issues"
+  },
   "type": "module",
   "scripts": {
     "test": "node --test tests/coderef.test.ts"
