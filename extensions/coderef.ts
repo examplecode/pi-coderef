@@ -633,7 +633,7 @@ export function createCodeRefPicker(
       if (picked) openFile(picked);
     } else if (keybindings.matches(data, "tui.select.cancel")) {
       done(undefined);
-    } else if (data === "\x7f" || data === "\b") {
+    } else if (matchesKey(data, "backspace")) {
       fileQuery = fileQuery.slice(0, -1);
       refilterFileList();
     } else if (keybindings.matches(data, "tui.input.tab") || data === "\t") {
@@ -666,13 +666,13 @@ export function createCodeRefPicker(
     } else if (keybindings.matches(data, "tui.select.cancel")) {
       codeSearchActive = false;
       if (codeSearchText) lastSearchText = codeSearchText;
-    } else if (data === "\x15") {
+    } else if (matchesKey(data, "ctrl+u")) {
       pageDown(-HALF_PAGE_LINES);
-    } else if (data === "\x04") {
+    } else if (matchesKey(data, "ctrl+d")) {
       pageDown(HALF_PAGE_LINES);
     } else if (keybindings.matches(data, "tui.select.confirm")) {
       jumpToMatch(codeSearchText, 1);
-    } else if (data === "\x7f" || data === "\b") {
+    } else if (matchesKey(data, "backspace")) {
       codeSearchText = codeSearchText.slice(0, -1);
       jumpToNearestMatch();
     } else if (data.length > 0 && !data.startsWith("\x1b") && !data.startsWith("\x03")) {
@@ -700,15 +700,15 @@ export function createCodeRefPicker(
     } else if (keybindings.matches(data, "tui.select.down") || data === "j") {
       selection.move(1, codeLines.length);
       awaitingConfirm = false;
-    } else if (keybindings.matches(data, "tui.select.pageUp") || data === "\x02") {
+    } else if (keybindings.matches(data, "tui.select.pageUp") || matchesKey(data, "ctrl+b")) {
       selection.move(-PAGE_LINES, codeLines.length);
       awaitingConfirm = false;
-    } else if (keybindings.matches(data, "tui.select.pageDown") || data === "\x06") {
+    } else if (keybindings.matches(data, "tui.select.pageDown") || matchesKey(data, "ctrl+f")) {
       selection.move(PAGE_LINES, codeLines.length);
       awaitingConfirm = false;
-    } else if (data === "\x15") {
+    } else if (matchesKey(data, "ctrl+u")) {
       pageDown(-HALF_PAGE_LINES);
-    } else if (data === "\x04") {
+    } else if (matchesKey(data, "ctrl+d")) {
       pageDown(HALF_PAGE_LINES);
     } else if (data === " ") {
       selection.toggleMark();

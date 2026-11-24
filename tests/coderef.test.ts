@@ -689,6 +689,55 @@ test("ctrl+d and ctrl+u move the code cursor by half a page", async () => {
   assert.equal(result?.startLine, 11);
 });
 
+test("backspace deletes query characters with Kitty keyboard protocol too", async () => {
+  const source = {
+    list: async () => ["aaa.ts", "bbb.ts"],
+    read: () => "x\n",
+  };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+
+  runKeys(picker, ["b", "b", "b"]);
+  const queryOf = () => {
+    const line = picker.render(80).find((l) => l.includes("搜索 ▸")) ?? "";
+    return line.split("搜索 ▸")[1]?.trim() ?? "";
+  };
+  assert.equal(queryOf(), "bbb");
+
+  runKeys(picker, ["\x1b[127u"]); // kitty backspace
+  assert.equal(queryOf(), "bb");
+
+  runKeys(picker, ["\x7f"]); // legacy backspace still works
+  assert.equal(queryOf(), "b");
+});
+
+test("paging keys work with Kitty keyboard protocol sequences (cmux/Ghostty/kitty)", async () => {
+  const content = Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["big.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open, cursor line 1
+  runKeys(picker, ["\x1b[100;5u", "\x1b[100;5u"]); // kitty Ctrl+D x2 -> +20
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 21);
+
+  runKeys(picker, ["\x1b[102;5u"]); // kitty Ctrl+F -> +20
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 41);
+
+  runKeys(picker, ["\x1b[117;5u"]); // kitty Ctrl+U -> -10
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 31);
+
+  runKeys(picker, ["\x1b[98;5u"]); // kitty Ctrl+B -> -20
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 11);
+});
+
 test("ctrl+d still pages while the in-file search is open", async () => {
   const content = Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n");
   const source = { list: async () => ["big.ts"], read: () => content };
