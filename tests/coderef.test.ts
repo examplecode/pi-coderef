@@ -755,6 +755,48 @@ test("ctrl+d still pages while the in-file search is open", async () => {
   assert.equal(result?.startLine, 11);
 });
 
+test("printable keys work when the terminal encodes them (full Kitty mode)", async () => {
+  const content = Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open, cursor line 1
+  runKeys(picker, ["\x1b[106u", "\x1b[106u"]); // kitty 'j' twice -> cursor line 3
+  runKeys(picker, ["\x1b[32u"]); // kitty space -> mark start at line 3
+  runKeys(picker, ["\x1b[106u"]); // kitty 'j' -> line 4
+  runKeys(picker, ["\x1b[32u"]); // kitty space -> fix end at line 4
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+
+  assert.equal(result?.startLine, 3);
+  assert.equal(result?.endLine, 4);
+});
+
+test("slash enters in-file search when the terminal encodes it", async () => {
+  const source = { list: async () => ["a.ts"], read: () => "one\ntwo\n" };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  runKeys(picker, ["\x1b[47u", "\x1b[116u", "\x1b[119u"]); // kitty '/', 't', 'w'
+
+  const rows = picker.render(80);
+  assert.ok(rows.some((line) => line.includes("搜索 ▸ tw")), rows.join("\n"));
+});
+
+test("typing spaces into the file query works when encoded", async () => {
+  const source = { list: async () => ["src/utils/format.ts", "other.ts"], read: () => "x\n" };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+
+  runKeys(picker, ["u", "\x1b[32u", "f"]); // "u f"
+  const line = picker.render(80).find((l) => l.includes("搜索 ▸")) ?? "";
+  assert.equal(line.split("搜索 ▸")[1]?.trim(), "u f");
+  assert.ok(picker.render(80).some((l) => l.includes("src/utils/format.ts")));
+});
+
 // ---- syntax highlighting ----
 
 test("code view highlights TypeScript syntax with pi theme tokens", async () => {

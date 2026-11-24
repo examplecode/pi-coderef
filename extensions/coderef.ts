@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
 import { promisify } from "node:util";
-import { matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
+import { decodeKittyPrintable, matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import hljs from "highlight.js";
 
@@ -377,6 +377,17 @@ export function isLargeSelection(range: SelectionRange): boolean {
   return range.endLine - range.startLine + 1 > LARGE_SELECTION_LINES;
 }
 
+/**
+ * Returns the printable character a key press represents, whether the terminal
+ * sends it as a plain byte (legacy) or as a Kitty CSI-u sequence.
+ */
+function printableCharOf(data: string): string | null {
+  const decoded = decodeKittyPrintable(data);
+  if (typeof decoded === "string" && decoded.length === 1 && decoded >= " ") return decoded;
+  if (data.length === 1 && data >= " " && data !== "\x7f") return data;
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // The interactive picker
 // ---------------------------------------------------------------------------
@@ -619,7 +630,7 @@ export function createCodeRefPicker(
 
   // -- input handling --
 
-  const handleFileSearchInput = (data: string): boolean => {
+  const handleFileSearchInput = (data: string, printable: string | null): boolean => {
     if (!filesReady) {
       if (keybindings.matches(data, "tui.select.cancel")) done(undefined);
       return true;
@@ -636,15 +647,15 @@ export function createCodeRefPicker(
     } else if (matchesKey(data, "backspace")) {
       fileQuery = fileQuery.slice(0, -1);
       refilterFileList();
-    } else if (keybindings.matches(data, "tui.input.tab") || data === "\t") {
+    } else if (keybindings.matches(data, "tui.input.tab") || matchesKey(data, "tab")) {
       const picked = matchedFiles[selectedFileIndex];
       if (picked) {
         fileQuery = picked;
         refilterFileList();
         openFile(picked);
       }
-    } else if (data.length > 0 && !data.startsWith("\x1b") && !data.startsWith("\x03")) {
-      fileQuery += data;
+    } else if (printable !== null) {
+      fileQuery += printable;
       fileError = undefined;
       refilterFileList();
     } else {
@@ -658,7 +669,7 @@ export function createCodeRefPicker(
     awaitingConfirm = false;
   };
 
-  const handleCodeSearchInput = (data: string): boolean => {
+  const handleCodeSearchInput = (data: string, printable: string | null): boolean => {
     if (matchesKey(data, "alt+enter")) {
       locatedLine = selection.cursor;
       codeSearchActive = false;
@@ -675,8 +686,8 @@ export function createCodeRefPicker(
     } else if (matchesKey(data, "backspace")) {
       codeSearchText = codeSearchText.slice(0, -1);
       jumpToNearestMatch();
-    } else if (data.length > 0 && !data.startsWith("\x1b") && !data.startsWith("\x03")) {
-      codeSearchText += data;
+    } else if (printable !== null) {
+      codeSearchText += printable;
       jumpToNearestMatch();
     } else {
       return false;
@@ -684,20 +695,20 @@ export function createCodeRefPicker(
     return true;
   };
 
-  const handleCodeViewInput = (data: string): boolean => {
-    if (codeSearchActive) return handleCodeSearchInput(data);
-    if (data === "/") {
+  const handleCodeViewInput = (data: string, printable: string | null): boolean => {
+    if (codeSearchActive) return handleCodeSearchInput(data, printable);
+    if (printable === "/") {
       codeSearchActive = true;
       codeSearchText = "";
       noMatches = false;
-    } else if (data === "n") {
+    } else if (printable === "n") {
       if (lastSearchText) jumpToMatch(lastSearchText, 1);
-    } else if (data === "N") {
+    } else if (printable === "N") {
       if (lastSearchText) jumpToMatch(lastSearchText, -1);
-    } else if (keybindings.matches(data, "tui.select.up") || data === "k") {
+    } else if (keybindings.matches(data, "tui.select.up") || printable === "k") {
       selection.move(-1, codeLines.length);
       awaitingConfirm = false;
-    } else if (keybindings.matches(data, "tui.select.down") || data === "j") {
+    } else if (keybindings.matches(data, "tui.select.down") || printable === "j") {
       selection.move(1, codeLines.length);
       awaitingConfirm = false;
     } else if (keybindings.matches(data, "tui.select.pageUp") || matchesKey(data, "ctrl+b")) {
@@ -710,7 +721,7 @@ export function createCodeRefPicker(
       pageDown(-HALF_PAGE_LINES);
     } else if (matchesKey(data, "ctrl+d")) {
       pageDown(HALF_PAGE_LINES);
-    } else if (data === " ") {
+    } else if (printable === " ") {
       selection.toggleMark();
       awaitingConfirm = false;
     } else if (keybindings.matches(data, "tui.select.cancel")) {
@@ -742,7 +753,11 @@ export function createCodeRefPicker(
     },
 
     handleInput(data: string): void {
-      const handled = view === "files" ? handleFileSearchInput(data) : handleCodeViewInput(data);
+      const printable = printableCharOf(data);
+      const handled =
+        view === "files"
+          ? handleFileSearchInput(data, printable)
+          : handleCodeViewInput(data, printable);
       if (!handled) return;
       invalidate();
       tui.requestRender();
