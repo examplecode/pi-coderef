@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.4] - 2026-11-24
+
+- Gallery preview now uses an animated GIF (`pi.image`) that autoplays everywhere; the mp4 stays in `pi.video`
+- Demo trimmed to the interactive part (starts at the file picker)
+
 ## [1.0.3] - 2026-11-24
 
 - README: recommend the npm install command first
