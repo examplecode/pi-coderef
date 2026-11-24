@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.6] - 2026-11-24
+
+- Paging keys that actually reach the picker: `Ctrl+D`/`Ctrl+U` (half page) and `Ctrl+F`/`Ctrl+B` (full page).
+  `PageUp`/`PageDown` are swallowed by pi's fullscreen transcript scroll, so they are kept only as a fallback.
+- Hint line shortened so it stays readable on 80-column terminals
+- Gallery media re-recorded with the new hints
+
 ## [1.0.5] - 2026-11-24
 
 - README: install command updated to the current version, plus an always-latest form

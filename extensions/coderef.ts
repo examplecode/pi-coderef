@@ -19,6 +19,7 @@ const LARGE_SELECTION_LINES = 200;
 const SKIPPED_DIRS = new Set(["node_modules", ".git"]);
 const FILE_RESULTS_LIMIT = 15;
 const PAGE_LINES = 20;
+const HALF_PAGE_LINES = 10;
 const CODE_VIEW_CHROME = 7; // header + status lines + hint + margin
 
 // ---------------------------------------------------------------------------
@@ -72,8 +73,7 @@ const MESSAGES = {
     noMatch: "(no match)",
     largeWarn: (n: number) =>
       `⚠ Selection over 200 lines (${n} total) - press Enter again to confirm`,
-    codeHint:
-      "j/k move · / search · n/N matches · PgUp/PgDn page · space mark · Enter confirm · Esc back",
+    codeHint: "j/k move · Ctrl+D/U half · Ctrl+F/B page · / search · space mark · Enter confirm",
     added: (ref: string) => `Added ${ref}`,
     needTui: "coderef requires interactive mode",
   },
@@ -93,8 +93,7 @@ const MESSAGES = {
     noMatch: "(无匹配)",
     largeWarn: (n: number) =>
       `⚠ 选区超过 200 行（共 ${n} 行），再按一次 Enter 确认发送`,
-    codeHint:
-      "j/k 移动 · / 搜索 · n/N 跳匹配 · PgUp/PgDn 翻页 · space 标记 · Enter 确认 · Esc 返回",
+    codeHint: "j/k 移动 · Ctrl+D/U 半页 · Ctrl+F/B 整页 · / 搜索 · space 标记 · Enter 确认",
     added: (ref: string) => `已添加 ${ref}`,
     needTui: "coderef 需要在交互模式下使用",
   },
@@ -644,6 +643,11 @@ export function createCodeRefPicker(
     return true;
   };
 
+  const pageDown = (lines: number) => {
+    selection.move(lines, codeLines.length);
+    awaitingConfirm = false;
+  };
+
   const handleCodeSearchInput = (data: string): boolean => {
     if (matchesKey(data, "alt+enter")) {
       locatedLine = selection.cursor;
@@ -652,6 +656,10 @@ export function createCodeRefPicker(
     } else if (keybindings.matches(data, "tui.select.cancel")) {
       codeSearchActive = false;
       if (codeSearchText) lastSearchText = codeSearchText;
+    } else if (data === "\x15") {
+      pageDown(-HALF_PAGE_LINES);
+    } else if (data === "\x04") {
+      pageDown(HALF_PAGE_LINES);
     } else if (keybindings.matches(data, "tui.select.confirm")) {
       jumpToMatch(codeSearchText, 1);
     } else if (data === "\x7f" || data === "\b") {
@@ -682,12 +690,16 @@ export function createCodeRefPicker(
     } else if (keybindings.matches(data, "tui.select.down") || data === "j") {
       selection.move(1, codeLines.length);
       awaitingConfirm = false;
-    } else if (keybindings.matches(data, "tui.select.pageUp")) {
+    } else if (keybindings.matches(data, "tui.select.pageUp") || data === "\x02") {
       selection.move(-PAGE_LINES, codeLines.length);
       awaitingConfirm = false;
-    } else if (keybindings.matches(data, "tui.select.pageDown")) {
+    } else if (keybindings.matches(data, "tui.select.pageDown") || data === "\x06") {
       selection.move(PAGE_LINES, codeLines.length);
       awaitingConfirm = false;
+    } else if (data === "\x15") {
+      pageDown(-HALF_PAGE_LINES);
+    } else if (data === "\x04") {
+      pageDown(HALF_PAGE_LINES);
     } else if (data === " ") {
       selection.toggleMark();
       awaitingConfirm = false;

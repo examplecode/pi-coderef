@@ -633,6 +633,63 @@ test("the picker renders English prompts in English environments", async () => {
   }
 });
 
+// ---- ergonomic paging keys (PageUp/PageDown are swallowed by pi's fullscreen scroll) ----
+
+test("ctrl+f and ctrl+b page down and up by 20 lines", async () => {
+  const content = Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["big.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open, cursor line 1
+  runKeys(picker, ["\x06", "\x06"]); // ctrl+f twice -> +40
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 41);
+
+  runKeys(picker, ["\x02"]); // ctrl+b -> back 20
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 21);
+});
+
+test("ctrl+d and ctrl+u move the code cursor by half a page", async () => {
+  const content = Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["big.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open, cursor line 1
+  runKeys(picker, ["\x04", "\x04"]); // ctrl+d twice -> +20 (half page = 10)
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 21);
+
+  runKeys(picker, ["\x15"]); // ctrl+u -> back 10
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 11);
+});
+
+test("ctrl+d still pages while the in-file search is open", async () => {
+  const content = Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["big.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  runKeys(picker, ["/"]); // search mode, empty query
+  runKeys(picker, ["\x04"]); // ctrl+d pages
+  runKeys(picker, [KEYMAP["tui.select.cancel"]]);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 11);
+});
+
 // ---- syntax highlighting ----
 
 test("code view highlights TypeScript syntax with pi theme tokens", async () => {
