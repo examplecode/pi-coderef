@@ -4,14 +4,16 @@ Hand your [pi](https://pi.dev) agent a precise code reference instead of pasting
 
 Built for the moments when you ask the agent to refactor a function, fix a bug in a specific block, or explain a few lines — just *point* at it.
 
+The code view is read-only and syntax-highlighted with pi's own theme colors, so what you pick looks like what pi shows you.
+
 ## Install
 
 ```bash
-# From GitHub (pin a version with a tag)
-pi install git:github.com/examplecode/pi-coderef@v1
+# From npm (recommended)
+pi install npm:pi-coderef@1.0.2
 
-# Or from npm
-pi install npm:pi-coderef@1.0.0
+# Or from GitHub (pin a version with a tag)
+pi install git:github.com/examplecode/pi-coderef@v1
 ```
 
 If you previously installed the extension manually, delete `~/.pi/agent/extensions/coderef.ts` to avoid loading it twice.
@@ -51,7 +53,7 @@ Write your task after it (e.g. "refactor this"), press Enter, done. Run `/codere
 
 ```bash
 npm install   # host packages, for tests only
-npm test      # 41 behavior tests
+npm test      # 48 behavior tests
 ```
 
 The extension only depends on pi's host-provided `@earendil-works/pi-coding-agent` and `@earendil-works/pi-tui`. No other runtime dependencies.
@@ -68,14 +70,16 @@ MIT
 
 适合的场景：让 agent 重构某段代码、修某个函数的 bug、解释某几行 —— 你只需要"指"给它看。
 
+代码视图只读，并使用 pi 自带主题配色做**语法高亮**，看到的颜色与 pi 内一致。
+
 ## 安装
 
 ```bash
-# 从 GitHub（推荐，可用 tag 锁定版本）
-pi install git:github.com/examplecode/pi-coderef@v1
+# 从 npm（推荐）
+pi install npm:pi-coderef@1.0.2
 
-# 或从 npm
-pi install npm:pi-coderef@1.0.0
+# 或从 GitHub（可用 tag 锁定版本）
+pi install git:github.com/examplecode/pi-coderef@v1
 ```
 
 如果你之前手动安装过扩展，删除 `~/.pi/agent/extensions/coderef.ts` 以避免重复加载。
@@ -115,7 +119,7 @@ pi install npm:pi-coderef@1.0.0
 
 ```bash
 npm install   # 拉取宿主包（仅测试需要）
-npm test      # 41 个行为测试
+npm test      # 48 个行为测试
 ```
 
 扩展只依赖 pi 宿主提供的 `@earendil-works/pi-coding-agent` 和 `@earendil-works/pi-tui`，无其它运行时依赖。
