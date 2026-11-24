@@ -1,6 +1,6 @@
 {
   "name": "pi-coderef",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Browse project files, locate code visually, and hand the pi agent a precise @file:line reference instead of pasting code.",
   "keywords": ["pi-package", "pi", "extension", "code-reference", "snippet"],
   "license": "MIT",

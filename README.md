@@ -9,8 +9,11 @@ The code view is read-only and syntax-highlighted with pi's own theme colors, so
 ## Install
 
 ```bash
-# From npm (recommended)
-pi install npm:pi-coderef@1.0.2
+# From npm (recommended) — pin a version for reproducibility
+pi install npm:pi-coderef@1.0.4
+
+# Always take the newest release
+pi install npm:pi-coderef
 
 # Or from GitHub (pin a version with a tag)
 pi install git:github.com/examplecode/pi-coderef@v1
@@ -75,8 +78,11 @@ MIT
 ## 安装
 
 ```bash
-# 从 npm（推荐）
-pi install npm:pi-coderef@1.0.2
+# 从 npm（推荐）—— 钉版本便于复现
+pi install npm:pi-coderef@1.0.4
+
+# 始终跟随最新版
+pi install npm:pi-coderef
 
 # 或从 GitHub（可用 tag 锁定版本）
 pi install git:github.com/examplecode/pi-coderef@v1

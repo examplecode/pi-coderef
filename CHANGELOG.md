@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.5] - 2026-11-24
+
+- README: install command updated to the current version, plus an always-latest form
+- docs: demo GIF compressed to 537 KB
+
 ## [1.0.4] - 2026-11-24
 
 - Gallery preview now uses an animated GIF (`pi.image`) that autoplays everywhere; the mp4 stays in `pi.video`
