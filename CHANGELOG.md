@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.3] - 2026-11-24
+
+- README: recommend the npm install command first
+- README: document the syntax-highlighted code view
+
 ## [1.0.2] - 2026-11-24
 
 - Syntax highlighting in the code view, using pi's own `syntax*` theme tokens (theme-aware)
