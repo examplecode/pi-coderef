@@ -5,6 +5,7 @@
 - Paging keys that actually reach the picker: `Ctrl+D`/`Ctrl+U` (half page) and `Ctrl+F`/`Ctrl+B` (full page).
   `PageUp`/`PageDown` are swallowed by pi's fullscreen transcript scroll, so they are kept only as a fallback.
 - Hint line shortened so it stays readable on 80-column terminals
+- Fix: the hint line could be clipped entirely; code rows are now budgeted from the live status-line count
 - Gallery media re-recorded with the new hints
 
 ## [1.0.5] - 2026-11-24

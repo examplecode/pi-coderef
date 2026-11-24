@@ -131,6 +131,22 @@ test("isLargeSelection flags ranges over 200 lines", () => {
   assert.equal(isLargeSelection({ startLine: 1, endLine: 201 }), true);
 });
 
+test("the hint line stays visible with search, pin and selection active", async () => {
+  const content = Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  const tui30 = { requestRender() {}, terminal: { rows: 30, columns: 112 } };
+  const picker = createCodeRefPicker(tui30, fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  runKeys(picker, ["/", "l", "i", "n", "e", "\x1b\r"]); // search then pin
+  runKeys(picker, [" "]); // start a selection
+
+  const rendered = picker.render(112);
+  assert.ok(rendered.length <= 27, `rendered ${rendered.length} lines, expected <= 27`);
+  assert.ok(rendered[rendered.length - 1].includes("Ctrl+D"), "hint line must be the last rendered line");
+});
+
 // ---- code lines ----
 
 test("splitFileLines splits lines and drops the trailing empty line", () => {

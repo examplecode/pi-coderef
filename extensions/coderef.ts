@@ -20,7 +20,8 @@ const SKIPPED_DIRS = new Set(["node_modules", ".git"]);
 const FILE_RESULTS_LIMIT = 15;
 const PAGE_LINES = 20;
 const HALF_PAGE_LINES = 10;
-const CODE_VIEW_CHROME = 7; // header + status lines + hint + margin
+/** Rows the host chrome (transcript gaps, footer, borders) takes around the picker. */
+const HOST_CHROME_ROWS = 4;
 
 // ---------------------------------------------------------------------------
 // Code references
@@ -556,7 +557,16 @@ export function createCodeRefPicker(
     const out: string[] = [
       theme.fg("accent", currentPath) + (fileTruncated ? theme.fg("dim", msg.truncatedNote) : ""),
     ];
-    const visibleRows = Math.max(5, (tui.terminal?.rows ?? 30) - CODE_VIEW_CHROME);
+    const statusRows =
+      1 + // selected range
+      (locatedLine !== null ? 1 : 0) +
+      (codeSearchActive || lastSearchText ? 1 : 0) +
+      (awaitingConfirm ? 1 : 0) +
+      1; // hint line
+    const visibleRows = Math.max(
+      3,
+      (tui.terminal?.rows ?? 30) - HOST_CHROME_ROWS - 1 /* file header */ - statusRows,
+    );
     const firstVisible = Math.max(
       0,
       Math.min(selection.cursor - 10, Math.max(0, codeLines.length - visibleRows)),
