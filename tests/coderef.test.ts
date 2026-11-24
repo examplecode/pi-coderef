@@ -159,11 +159,11 @@ test("splitFileLines splits lines and drops the trailing empty line", () => {
   assert.deepEqual(splitFileLines(""), { lines: [], truncated: false });
 });
 
-test("splitFileLines truncates files beyond 5000 lines", () => {
-  const content = Array.from({ length: 5001 }, (_, i) => `line${i}`).join("\n");
+test("splitFileLines keeps every line, no matter how large the file is", () => {
+  const content = Array.from({ length: 12000 }, (_, i) => `line${i}`).join("\n");
   const result = splitFileLines(content);
-  assert.equal(result.lines.length, 5000);
-  assert.equal(result.truncated, true);
+  assert.equal(result.lines.length, 12000);
+  assert.equal(result.lines[11999], "line11999");
 });
 
 test("isBinaryContent detects NUL bytes", () => {
@@ -651,6 +651,37 @@ test("the picker renders English prompts in English environments", async () => {
   } finally {
     process.env.LANG = "zh_CN.UTF-8";
   }
+});
+
+test("G reaches the last line of a very large file (no 5000-line cap)", async () => {
+  const content = Array.from({ length: 20000 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["huge.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  runKeys(picker, ["G"]);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 20000);
+  assert.equal(result?.code, "line19999");
+});
+
+test("syntax highlighting is filled in for a window deep inside a huge file", async () => {
+  const content = Array.from({ length: 30000 }, (_, i) => `const v${i} = "s";`).join("\n");
+  const source = { list: async () => ["huge.ts"], read: () => content };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  runKeys(picker, ["G"]); // jump to the end: far beyond any sync-highlight budget
+
+  const highlighted = () =>
+    picker.render(80).some((line) => line.includes("[syntaxKeyword:const]"));
+  for (let i = 0; i < 100 && !highlighted(); i++) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.ok(highlighted(), "expected syntax tokens near the end of the file");
 });
 
 // ---- ergonomic paging keys (PageUp/PageDown are swallowed by pi's fullscreen scroll) ----

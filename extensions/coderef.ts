@@ -14,7 +14,10 @@ import hljs from "highlight.js";
 
 const execFileAsync = promisify(execFile);
 
-const MAX_FILE_LINES = 5000;
+/** Files up to this size are highlighted in one go; larger ones highlight lazily. */
+const SYNC_HIGHLIGHT_LINES = 20000;
+/** Context kept above a lazily highlighted window so block comments stay colored. */
+const HIGHLIGHT_LOOKBACK = 200;
 const LARGE_SELECTION_LINES = 200;
 const SKIPPED_DIRS = new Set(["node_modules", ".git"]);
 const FILE_RESULTS_LIMIT = 15;
@@ -67,7 +70,6 @@ const MESSAGES = {
     noFileMatch: "(no matching files)",
     moreMatches: (n: number) => `... ${n} matches total`,
     fileHint: "up/down choose · Tab complete+open · Enter open · Esc cancel",
-    truncatedNote: " (showing first 5000 lines)",
     selected: (s: number, e: number, n: number) => `Selected ${s}-${e} (${n} lines)`,
     located: (n: number) => `◉ Located: line ${n}`,
     searchHint: "· Enter next · Alt+Enter pin · Esc exit",
@@ -90,7 +92,6 @@ const MESSAGES = {
     noFileMatch: "(无匹配文件)",
     moreMatches: (n: number) => `… 共 ${n} 个匹配`,
     fileHint: "↑↓ 选择 · Tab 补全并打开 · Enter 打开 · Esc 取消",
-    truncatedNote: "（超过 5000 行，仅显示前 5000 行）",
     selected: (s: number, e: number, n: number) => `已选 ${s}-${e} 行（${n} 行）`,
     located: (n: number) => `◉ 已定位：第 ${n} 行`,
     searchHint: "· Enter 下一个 · Alt+Enter 定位 · Esc 退出",
@@ -315,12 +316,11 @@ export function tokenizeCode(code: string, language: string | undefined): TokenS
 // Code lines
 // ---------------------------------------------------------------------------
 
-/** Splits file content into display lines, truncating very large files. */
+/** Splits file content into display lines. */
 export function splitFileLines(content: string): { lines: string[]; truncated: boolean } {
   const lines = content.split("\n");
   if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
-  const truncated = lines.length > MAX_FILE_LINES;
-  return { lines: truncated ? lines.slice(0, MAX_FILE_LINES) : lines, truncated };
+  return { lines, truncated: false };
 }
 
 export function isBinaryContent(content: string): boolean {
@@ -437,7 +437,8 @@ export function createCodeRefPicker(
   let currentPath = "";
   let codeLines: string[] = [];
   let lineTokens: TokenSpan[][] = [];
-  let fileTruncated = false;
+  let highlightLanguage: string | undefined;
+  let pendingHighlight: number | null = null;
   let awaitingConfirm = false;
   let codeSearchActive = false;
   let codeSearchText = "";
@@ -468,8 +469,12 @@ export function createCodeRefPicker(
     const loaded = splitFileLines(content);
     currentPath = filePath;
     codeLines = loaded.lines;
-    lineTokens = tokenizeCode(codeLines.join("\n"), detectHighlightLanguage(filePath));
-    fileTruncated = loaded.truncated;
+    highlightLanguage = detectHighlightLanguage(filePath);
+    lineTokens = [];
+    pendingHighlight = null;
+    if (codeLines.length <= SYNC_HIGHLIGHT_LINES) {
+      lineTokens = tokenizeCode(codeLines.join("\n"), highlightLanguage);
+    }
     selection = createLineSelection();
     locatedLine = null;
     awaitingConfirm = false;
@@ -567,12 +572,36 @@ export function createCodeRefPicker(
     return out.map((line) => truncateToWidth(line, width));
   };
 
+  /**
+   * Ensures tokens exist for the given window. Huge files are highlighted in
+   * background chunks so opening them never blocks the UI.
+   */
+  const ensureHighlighted = (first: number, last: number) => {
+    if (!highlightLanguage) return;
+    if (lineTokens.length > 0 && last < lineTokens.length) return;
+    if (pendingHighlight !== null) return;
+    const start = Math.max(0, first - HIGHLIGHT_LOOKBACK);
+    const end = Math.min(codeLines.length, last + 1);
+    pendingHighlight = start;
+    setTimeout(() => {
+      const slice = codeLines.slice(start, end);
+      const tokenized = tokenizeCode(slice.join("\n"), highlightLanguage);
+      for (let i = 0; i < tokenized.length; i++) {
+        const target = start + i;
+        if (target < codeLines.length) lineTokens[target] = tokenized[i];
+      }
+      pendingHighlight = null;
+      invalidate();
+      tui.requestRender();
+    }, 0);
+  };
+
   const renderCodeView = (width: number): string[] => {
     const range = selection.range();
     const activeSearch = codeSearchActive ? codeSearchText : lastSearchText;
     const matchLines = new Set(findMatchLines(activeSearch));
     const out: string[] = [
-      theme.fg("accent", currentPath) + (fileTruncated ? theme.fg("dim", msg.truncatedNote) : ""),
+      theme.fg("accent", currentPath),
     ];
     const statusRows =
       1 + // selected range
@@ -589,6 +618,7 @@ export function createCodeRefPicker(
       Math.min(selection.cursor - 10, Math.max(0, codeLines.length - visibleRows)),
     );
     const lastVisible = Math.min(codeLines.length, firstVisible + visibleRows);
+    ensureHighlighted(firstVisible, lastVisible - 1);
     for (let i = firstVisible; i < lastVisible; i++) {
       const marker =
         i === selection.cursor

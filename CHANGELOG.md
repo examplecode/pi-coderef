@@ -6,6 +6,8 @@
 - Fix: printable commands (`j`/`k`/`/`/`n`/`N`/`space`) are normalized, so they work when a terminal encodes every key
 - New: `g` jumps to the top of the file, `G` jumps to the last line
 - Hint bar split into two lines so every shortcut stays visible on narrow terminals
+- Fix: removal of the 5000-line display cap. Every line is now reachable; large files open instantly because only the visible window is highlighted, in the background
+- Fix: the code view no longer blocks on syntax highlighting (3 ms to open a 30k-line file)
 
 ## [1.0.6] - 2026-11-24
 

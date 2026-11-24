@@ -59,7 +59,7 @@ Write your task after it (e.g. "refactor this"), press Enter, done. Run `/codere
 ## Safety
 
 - Binary files are refused
-- Huge files load at most the first 5000 lines
+- Very large files open instantly: only the visible window is syntax-highlighted, in the background
 - Selections over 200 lines require a second confirmation
 
 ## Development
@@ -138,7 +138,7 @@ pi install git:github.com/examplecode/pi-coderef@v1
 ## 安全护栏
 
 - 二进制文件拒绝打开
-- 超大文件只加载前 5000 行
+- 超大文件**瞬间打开**：只对当前可见窗口做语法高亮，且在后台完成（不卡界面）
 - 超过 200 行的选区需二次确认
 
 ## 开发
