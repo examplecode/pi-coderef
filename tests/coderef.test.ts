@@ -144,7 +144,11 @@ test("the hint line stays visible with search, pin and selection active", async 
 
   const rendered = picker.render(112);
   assert.ok(rendered.length <= 27, `rendered ${rendered.length} lines, expected <= 27`);
-  assert.ok(rendered[rendered.length - 1].includes("Ctrl+D"), "hint line must be the last rendered line");
+  assert.ok(rendered.some((line) => line.includes("Ctrl+D/U")), "first hint line must be rendered");
+  assert.ok(
+    rendered[rendered.length - 1].includes("Enter 确认"),
+    "last hint line must be the final rendered line",
+  );
 });
 
 // ---- code lines ----
@@ -795,6 +799,44 @@ test("typing spaces into the file query works when encoded", async () => {
   const line = picker.render(80).find((l) => l.includes("搜索 ▸")) ?? "";
   assert.equal(line.split("搜索 ▸")[1]?.trim(), "u f");
   assert.ok(picker.render(80).some((l) => l.includes("src/utils/format.ts")));
+});
+
+test("g jumps to the top and G jumps to the last line", async () => {
+  const content = Array.from({ length: 100 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["big.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open, cursor line 1
+  runKeys(picker, ["G"]); // bottom
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 100);
+
+  runKeys(picker, ["g"]); // top
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 1);
+});
+
+test("g and G work when the terminal encodes letters (Kitty mode)", async () => {
+  const content = Array.from({ length: 50 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["big.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  runKeys(picker, ["\x1b[71u"]); // kitty 'G'
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 50);
+
+  runKeys(picker, ["\x1b[103u"]); // kitty 'g'
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 1);
 });
 
 // ---- syntax highlighting ----

@@ -74,7 +74,10 @@ const MESSAGES = {
     noMatch: "(no match)",
     largeWarn: (n: number) =>
       `⚠ Selection over 200 lines (${n} total) - press Enter again to confirm`,
-    codeHint: "j/k move · Ctrl+D/U half · Ctrl+F/B page · / search · space mark · Enter confirm",
+    codeHint: [
+      "j/k move · g top · G bottom · Ctrl+D/U half · Ctrl+F/B page",
+      "/ search · n/N matches · space mark · Enter confirm · Esc back",
+    ],
     added: (ref: string) => `Added ${ref}`,
     needTui: "coderef requires interactive mode",
   },
@@ -94,7 +97,10 @@ const MESSAGES = {
     noMatch: "(无匹配)",
     largeWarn: (n: number) =>
       `⚠ 选区超过 200 行（共 ${n} 行），再按一次 Enter 确认发送`,
-    codeHint: "j/k 移动 · Ctrl+D/U 半页 · Ctrl+F/B 整页 · / 搜索 · space 标记 · Enter 确认",
+    codeHint: [
+      "j/k 移动 · g 顶部 · G 底部 · Ctrl+D/U 半页 · Ctrl+F/B 整页",
+      "/ 搜索 · n/N 匹配 · space 标记 · Enter 确认 · Esc 返回",
+    ],
     added: (ref: string) => `已添加 ${ref}`,
     needTui: "coderef 需要在交互模式下使用",
   },
@@ -573,7 +579,7 @@ export function createCodeRefPicker(
       (locatedLine !== null ? 1 : 0) +
       (codeSearchActive || lastSearchText ? 1 : 0) +
       (awaitingConfirm ? 1 : 0) +
-      1; // hint line
+      msg.codeHint.length; // hint lines
     const visibleRows = Math.max(
       3,
       (tui.terminal?.rows ?? 30) - HOST_CHROME_ROWS - 1 /* file header */ - statusRows,
@@ -624,7 +630,7 @@ export function createCodeRefPicker(
     if (awaitingConfirm) {
       out.push(theme.fg("dim", msg.largeWarn(range.endLine - range.startLine + 1)));
     }
-    out.push(theme.fg("dim", msg.codeHint));
+    for (const hint of msg.codeHint) out.push(theme.fg("dim", hint));
     return out.map((line) => truncateToWidth(line, width));
   };
 
@@ -701,6 +707,12 @@ export function createCodeRefPicker(
       codeSearchActive = true;
       codeSearchText = "";
       noMatches = false;
+    } else if (printable === "g") {
+      selection.move(-selection.cursor, codeLines.length);
+      awaitingConfirm = false;
+    } else if (printable === "G") {
+      selection.move(codeLines.length - 1 - selection.cursor, codeLines.length);
+      awaitingConfirm = false;
     } else if (printable === "n") {
       if (lastSearchText) jumpToMatch(lastSearchText, 1);
     } else if (printable === "N") {

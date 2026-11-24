@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7] - 2026-11-24
+
+- Fix: paging keys and backspace now work on terminals that use the Kitty keyboard protocol (cmux, Ghostty, kitty, WezTerm)
+- Fix: printable commands (`j`/`k`/`/`/`n`/`N`/`space`) are normalized, so they work when a terminal encodes every key
+- New: `g` jumps to the top of the file, `G` jumps to the last line
+- Hint bar split into two lines so every shortcut stays visible on narrow terminals
+
 ## [1.0.6] - 2026-11-24
 
 - Paging keys that actually reach the picker: `Ctrl+D`/`Ctrl+U` (half page) and `Ctrl+F`/`Ctrl+B` (full page).
