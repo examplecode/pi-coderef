@@ -216,7 +216,7 @@ function fakeTui() {
 
 function fakeTheme() {
   return {
-    fg: (_color: string, text: string) => text,
+    fg: (color: string, text: string) => (color.startsWith("syntax") ? `[${color}:${text}]` : text),
     bg: (color: string, text: string) => `<${color}>${text}</${color}>`,
     bold: (text: string) => `<b>${text}</b>`,
     inverse: (text: string) => `<inv>${text}</inv>`,
@@ -631,6 +631,60 @@ test("the picker renders English prompts in English environments", async () => {
   } finally {
     process.env.LANG = "zh_CN.UTF-8";
   }
+});
+
+// ---- syntax highlighting ----
+
+test("code view highlights TypeScript syntax with pi theme tokens", async () => {
+  const source = {
+    list: async () => ["a.ts"],
+    read: () => 'const x = "hi"\n// note\n',
+  };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+
+  const rendered = picker.render(80).join("\n");
+  assert.ok(rendered.includes("[syntaxKeyword:const]"));
+  assert.ok(rendered.includes('[syntaxString:&quot;hi&quot;]') || rendered.includes('[syntaxString:"hi"]'));
+  assert.ok(rendered.includes("[syntaxComment:// note]"));
+});
+
+test("unknown file types are left unhighlighted", async () => {
+  const source = {
+    list: async () => ["notes.txt"],
+    read: () => "const x\n",
+  };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+
+  assert.ok(!picker.render(80).join("\n").includes("[syntax"));
+});
+
+test("python files are highlighted by extension", async () => {
+  const source = {
+    list: async () => ["a.py"],
+    read: () => "def foo():\n",
+  };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+
+  assert.ok(picker.render(80).join("\n").includes("[syntaxKeyword:def]"));
+});
+
+test("multi-line comments keep their token on later lines", async () => {
+  const source = {
+    list: async () => ["a.ts"],
+    read: () => "/* first\nsecond */\nreal()\n",
+  };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+
+  const rendered = picker.render(80).join("\n");
+  assert.ok(rendered.includes("[syntaxComment:second */]"));
 });
 
 // ---- extension wiring ----

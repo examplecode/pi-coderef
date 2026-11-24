@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.2] - 2026-11-24
+
+- Syntax highlighting in the code view, using pi's own `syntax*` theme tokens (theme-aware)
+- Languages detected by extension: TypeScript/JavaScript, Python, Go, Java, Kotlin, Rust, C/C++, Bash, YAML, JSON, Ruby, PHP, SQL, CSS, HTML, Swift
+- Updated gallery preview media (highlighted screenshot and demo video)
+
 ## [1.0.1] - 2026-11-23
 
 - Bilingual UI: English and Chinese prompts, selected from the system locale

@@ -10,6 +10,7 @@ import * as path from "node:path";
 import { promisify } from "node:util";
 import { matchesKey, truncateToWidth } from "@earendil-works/pi-tui";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import hljs from "highlight.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -216,6 +217,95 @@ export async function listProjectFiles(root: string): Promise<string[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Syntax highlighting
+// ---------------------------------------------------------------------------
+
+/** highlight.js language name for a file extension, when supported. */
+const LANGUAGE_BY_EXTENSION: Record<string, string> = {
+  ts: "typescript", tsx: "typescript", mts: "typescript", cts: "typescript",
+  js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
+  json: "json", py: "python", go: "go", java: "java", kt: "kotlin",
+  rs: "rust", c: "c", h: "c", cc: "cpp", cpp: "cpp", hpp: "cpp",
+  sh: "bash", bash: "bash", zsh: "bash",
+  yaml: "yaml", yml: "yaml", rb: "ruby", php: "php", sql: "sql",
+  html: "xml", xml: "xml", css: "css", swift: "swift",
+};
+
+export function detectHighlightLanguage(filePath: string): string | undefined {
+
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  return LANGUAGE_BY_EXTENSION[ext];
+}
+
+/** Maps a highlight.js class to one of pi's syntax theme tokens. */
+function syntaxTokenFor(hljsClass: string): string | null {
+  const name = hljsClass.replace(/^hljs-/, "");
+  if (name.startsWith("title")) {
+    return name.includes("class") ? "syntaxType" : "syntaxFunction";
+  }
+  const table: Record<string, string> = {
+    comment: "syntaxComment", quote: "syntaxComment", doctag: "syntaxComment",
+    keyword: "syntaxKeyword", built_in: "syntaxKeyword", literal: "syntaxKeyword",
+    meta: "syntaxKeyword", "template-tag": "syntaxKeyword", "selector-tag": "syntaxKeyword",
+    string: "syntaxString", regexp: "syntaxString", "template-string": "syntaxString",
+    number: "syntaxNumber", bullet: "syntaxNumber",
+    type: "syntaxType", class: "syntaxType", "selector-id": "syntaxType",
+    variable: "syntaxVariable", "template-variable": "syntaxVariable", attr: "syntaxVariable",
+    attribute: "syntaxVariable", params: "syntaxVariable", property: "syntaxVariable",
+    name: "syntaxFunction", symbol: "syntaxFunction",
+    operator: "syntaxOperator", punctuation: "syntaxPunctuation", formula: "syntaxOperator",
+  };
+  return table[name] ?? null;
+}
+
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&");
+}
+
+export interface TokenSpan {
+  text: string;
+  token: string | null;
+}
+
+/** Tokenizes code into per-line spans using pi's syntax theme tokens. */
+export function tokenizeCode(code: string, language: string | undefined): TokenSpan[][] {
+  const plain = () => code.split("\n").map((line) => [{ text: line, token: null }]);
+  if (!language) return plain();
+  let html: string;
+  try {
+    html = hljs.highlight(code, { language, ignoreIllegals: true }).value;
+  } catch {
+    return plain();
+  }
+  const lines: TokenSpan[][] = [[]];
+  const stack: Array<string | null> = [null];
+  const append = (text: string) => {
+    const parts = text.split("\n");
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) lines.push([]);
+      if (parts[i]) lines[lines.length - 1].push({ text: parts[i], token: stack[stack.length - 1] });
+    }
+  };
+  const pattern = /<span class="hljs-([^"]+)">|<\/span>|([^<]+)/g;
+  for (const match of html.matchAll(pattern)) {
+    if (match[1] !== undefined) {
+      stack.push(syntaxTokenFor(`hljs-${match[1]}`));
+    } else if (match[0] === "</span>") {
+      stack.pop();
+    } else if (match[2] !== undefined) {
+      append(decodeEntities(match[2]));
+    }
+  }
+  return lines;
+}
+
+// ---------------------------------------------------------------------------
 // Code lines
 // ---------------------------------------------------------------------------
 
@@ -329,6 +419,7 @@ export function createCodeRefPicker(
 
   let currentPath = "";
   let codeLines: string[] = [];
+  let lineTokens: TokenSpan[][] = [];
   let fileTruncated = false;
   let awaitingConfirm = false;
   let codeSearchActive = false;
@@ -360,6 +451,7 @@ export function createCodeRefPicker(
     const loaded = splitFileLines(content);
     currentPath = filePath;
     codeLines = loaded.lines;
+    lineTokens = tokenizeCode(codeLines.join("\n"), detectHighlightLanguage(filePath));
     fileTruncated = loaded.truncated;
     selection = createLineSelection();
     locatedLine = null;
@@ -482,7 +574,14 @@ export function createCodeRefPicker(
               : i >= range.startLine && i <= range.endLine
                 ? "▌"
                 : " ";
-      out.push(`${marker} ${String(i + 1).padStart(4)} ${highlightMatchedText(codeLines[i] ?? "", activeSearch)}`);
+      const spans = lineTokens[i] ?? [{ text: codeLines[i] ?? "", token: null }];
+      const content = spans
+        .map((span) => {
+          const marked = highlightMatchedText(span.text, activeSearch);
+          return span.token ? theme.fg(span.token, marked) : marked;
+        })
+        .join("");
+      out.push(`${marker} ${String(i + 1).padStart(4)} ${content}`);
     }
     out.push(
       theme.fg(
