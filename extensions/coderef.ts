@@ -432,6 +432,19 @@ export interface CodeRefPicker {
   invalidate(): void;
 }
 
+/**
+ * pi's "system" theme maps background tokens to no color at all, so bg() only
+ * emits a reset. Detect that once and fall back to inverse video.
+ */
+function themeHasBackground(theme: ThemeLike): boolean {
+  try {
+    const probe = theme.bg("selectedBg", "X");
+    return !probe.startsWith("\x1b[49m");
+  } catch {
+    return false;
+  }
+}
+
 export interface ThemeLike {
   fg(color: string, text: string): string;
   bg(color: string, text: string): string;
@@ -448,6 +461,8 @@ export function createCodeRefPicker(
   language: Language = detectLanguage(process.env),
 ): CodeRefPicker {
   const msg = MESSAGES[language];
+  const useBackground = themeHasBackground(theme);
+  const emphasize = (text: string) => (useBackground ? theme.bg("selectedBg", text) : theme.inverse(text));
   const pendingFileList = Promise.resolve(source.list());
   let view: "files" | "code" = "files";
   let fileQuery = "";
@@ -588,7 +603,7 @@ export function createCodeRefPicker(
     const visible = matchedFiles.slice(0, FILE_RESULTS_LIMIT);
     for (let i = 0; i < visible.length; i++) {
       const row = `${i === selectedFileIndex ? "▸ " : "  "}${visible[i]}`;
-      out.push(i === selectedFileIndex ? theme.bold(theme.bg("selectedBg", row)) : row);
+      out.push(i === selectedFileIndex ? theme.bold(emphasize(row)) : row);
     }
     if (matchedFiles.length > visible.length) {
       out.push(theme.fg("dim", `  ${msg.moreMatches(matchedFiles.length)}`));
@@ -665,7 +680,10 @@ export function createCodeRefPicker(
           return span.token ? theme.fg(span.token, marked) : marked;
         })
         .join("");
-      out.push(`${marker} ${String(i + 1).padStart(4)} ${content}`);
+      const inSelection = i >= range.startLine && i <= range.endLine;
+      const plainRow = `${marker} ${String(i + 1).padStart(4)} ${highlightMatchedText(codeLines[i] ?? "", activeSearch)}`;
+      const row = `${marker} ${String(i + 1).padStart(4)} ${content}`;
+      out.push(inSelection ? emphasize(useBackground ? row : plainRow) : row);
     }
     out.push(
       theme.fg(

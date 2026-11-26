@@ -44,7 +44,7 @@ Run **`/coderef`** in pi (or press **`Alt+P`**; `/pick` is an alias):
 | `Enter` | Confirm → the reference is inserted into the prompt |
 | `Esc` | Go back / cancel, one level at a time |
 
-Selection works with the keyboard (`space`) or the mouse (drag over lines). Mouse support needs a terminal that reports mouse events to pi (pi's fullscreen mode does).
+Selection works with the keyboard (`space`) or the mouse (drag over lines); selected lines are highlighted (background color when the theme defines one, inverse video otherwise). Mouse support needs a terminal that reports mouse events to pi (pi's fullscreen mode does).
 
 Navigation follows Vim (`j`/`k`, `Ctrl+D`/`Ctrl+U`, `Ctrl+F`/`Ctrl+B`, `g`/`G`).
 
@@ -87,7 +87,7 @@ MIT
 
 适合的场景：让 agent 重构某段代码、修某个函数的 bug、解释某几行 —— 你只需要"指"给它看。
 
-代码视图只读，并使用 pi 自带主题配色做**语法高亮**，看到的颜色与 pi 内一致。选区既可以用键盘（`space`）标记，也可以**直接用鼠标拖拽**（需要终端把鼠标事件交给 pi，pi 的 fullscreen 模式默认如此）。
+代码视图只读，并使用 pi 自带主题配色做**语法高亮**，看到的颜色与 pi 内一致。选区既可以用键盘（`space`）标记，也可以**直接用鼠标拖拽**（选中行会高亮显示；主题有背景色时用背景色，否则用反色）（需要终端把鼠标事件交给 pi，pi 的 fullscreen 模式默认如此）。
 
 导航遵循 Vim 习惯：`j`/`k`、`Ctrl+D`/`Ctrl+U`、`Ctrl+F`/`Ctrl+B`、`g`/`G`，以及 `/` 搜索后 `n`/`N` 跳转。
 

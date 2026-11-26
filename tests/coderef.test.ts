@@ -243,6 +243,16 @@ function fakeTheme() {
   };
 }
 
+/** Mimics pi's "system" theme, whose background tokens resolve to no color at all. */
+function noBackgroundTheme() {
+  return {
+    fg: (color: string, text: string) => (color.startsWith("syntax") ? `[${color}:${text}]` : text),
+    bg: (_color: string, text: string) => `\x1b[49m${text}\x1b[49m`, // reset-only, like the system theme
+    bold: (text: string) => text,
+    inverse: (text: string) => `<inv>${text}</inv>`,
+  };
+}
+
 function fakeKeybindings() {
   return { matches: (data: string, action: string) => data === KEYMAP[action as keyof typeof KEYMAP] };
 }
@@ -976,6 +986,65 @@ test("the picker claims viewport keys so PageUp/PageDown reach it", () => {
     read: () => "",
   });
   assert.equal((picker as { capturesViewportInput?: boolean }).capturesViewportInput, true);
+});
+
+test("selected lines are highlighted with a background", async () => {
+  const content = Array.from({ length: 30 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  picker.render(80);
+
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 2 }));
+  picker.handleMouse?.(mouseEvent({ type: "drag", y: 4 }));
+  picker.handleMouse?.(mouseEvent({ type: "release", y: 4 }));
+  const rows = picker.render(80);
+
+  const highlighted = rows.filter((line) => line.includes("<selectedBg>"));
+  assert.equal(highlighted.length, 3, "exactly the three selected lines must be highlighted");
+  assert.ok(highlighted.some((line) => line.includes("line1")));
+  assert.ok(highlighted.some((line) => line.includes("line3")));
+  assert.ok(!rows.some((line) => line.includes("<selectedBg>line4")), "line 5 must not be highlighted");
+});
+
+test("search matches stay visible inside a highlighted selection", async () => {
+  const source = { list: async () => ["a.ts"], read: () => "foo\nbar foo\nbaz\n" };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  runKeys(picker, ["/", "f", "o", "o"]); // search mode
+  const rows = picker.render(80);
+  const matchRow = rows.find((line) => line.includes("<inv><b>foo</b></inv>"));
+  assert.ok(matchRow, "match must be rendered");
+  assert.ok(matchRow!.includes("<selectedBg>"), "the current line is highlighted as well");
+});
+
+test("selected lines fall back to inverse video when the theme has no background colors", async () => {
+  const content = Array.from({ length: 20 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  const picker = createCodeRefPicker(fakeTui(), noBackgroundTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  picker.render(80);
+
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 2 }));
+  picker.handleMouse?.(mouseEvent({ type: "drag", y: 3 }));
+  picker.handleMouse?.(mouseEvent({ type: "release", y: 3 }));
+  const rows = picker.render(80);
+
+  const inverted = rows.filter((line) => line.includes("<inv>"));
+  assert.equal(inverted.length, 2, "the two selected lines must use inverse video");
+  assert.ok(!rows.some((line) => line.includes("<selectedBg>")), "no background token should be used");
+});
+
+test("the file list highlight also falls back to inverse video", async () => {
+  const source = { list: async () => ["aaa.ts", "bbb.ts"], read: () => "x\n" };
+  const picker = createCodeRefPicker(fakeTui(), noBackgroundTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+
+  const rows = picker.render(80);
+  assert.ok(rows.some((line) => line.includes("<inv>") && line.includes("aaa.ts")));
 });
 
 // ---- syntax highlighting ----
