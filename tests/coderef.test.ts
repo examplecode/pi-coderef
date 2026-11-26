@@ -139,7 +139,7 @@ test("the hint line stays visible with search, pin and selection active", async 
   await waitReady(picker);
 
   runKeys(picker, [KEYMAP["tui.select.confirm"]]);
-  runKeys(picker, ["/", "l", "i", "n", "e", "\x1b\r"]); // search then pin
+  runKeys(picker, ["/", "l", "i", "n", "e", KEYMAP["tui.select.confirm"]]); // search then Enter to locate
   runKeys(picker, [" "]); // start a selection
 
   const rendered = picker.render(112);
@@ -561,10 +561,10 @@ test("in-file search ignores case and highlights the original text casing", asyn
   assert.ok(picker.render(80).some((line) => line.includes("<inv><b>FooBar</b></inv> baz")));
 });
 
-test("alt+enter leaves in-file search and pins the current match as the located position", async () => {
+test("enter leaves in-file search, locates the position, and n/N keep navigating", async () => {
   const source = {
     list: async () => ["a.ts"],
-    read: () => "one\ntwo\nthree\n",
+    read: () => "one\ntwo\nthree\ntwo again\n",
   };
   let result: CodeRef | undefined;
   const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
@@ -573,16 +573,32 @@ test("alt+enter leaves in-file search and pins the current match as the located 
   await waitReady(picker);
 
   runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open
-  runKeys(picker, ["/", "t", "h", "r"]); // jump toward "three"
-  runKeys(picker, ["\x1b\r"]); // alt+enter: accept position
+  runKeys(picker, ["/", "t", "w", "o"]); // live jump to the first "two" (line 2)
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]); // enter: locate + exit search
 
   const rendered = picker.render(80);
-  assert.ok(!rendered.some((line) => line.includes("搜索 ▸")));
-  assert.ok(rendered.some((line) => line.includes("◉")));
-  assert.ok(rendered.some((line) => line.includes("已定位")));
+  assert.ok(!rendered.some((line) => line.includes("搜索 ▸")), "search mode must be closed");
+  assert.ok(rendered.some((line) => line.includes("◉")), "position must be pinned");
+  assert.ok(rendered.some((line) => line.includes("已定位")), "status must report it");
+
+  runKeys(picker, ["n"]); // next match: line 4
+  runKeys(picker, ["N"]); // back: line 2
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 2);
+});
+
+test("alt+enter no longer triggers anything special in search mode", async () => {
+  const source = { list: async () => ["a.ts"], read: () => "one\ntwo\n" };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
 
   runKeys(picker, [KEYMAP["tui.select.confirm"]]);
-  assert.equal(result?.startLine, 3);
+  runKeys(picker, ["/", "t", "w", "o"]);
+  runKeys(picker, ["\x1b\r"]); // alt+enter is no longer a shortcut
+
+  const rendered = picker.render(80);
+  assert.ok(rendered.some((line) => line.includes("搜索 ▸ two")), "must stay in search mode");
+  assert.ok(!rendered.some((line) => line.includes("已定位")), "must not pin the position");
 });
 
 test("leaving search with escape does not pin the position", async () => {
@@ -612,7 +628,7 @@ test("code view fits the terminal height so status lines are never cut off", asy
   await waitReady(picker);
 
   runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open
-  runKeys(picker, ["/", "l", "i", "n", "e", "\x1b\r"]); // search, then alt+enter pins the position
+  runKeys(picker, ["/", "l", "i", "n", "e", KEYMAP["tui.select.confirm"]]); // search, then Enter locates
 
   const rendered = picker.render(80);
   assert.ok(rendered.length <= 24, `expected <= 24 lines, got ${rendered.length}`);
@@ -644,7 +660,7 @@ test("the picker renders English prompts in English environments", async () => {
     assert.ok(fileView.includes("Indexing") || !fileView.includes("索引"));
 
     runKeys(picker, [KEYMAP["tui.select.confirm"]]);
-    runKeys(picker, ["/", "t", "w", "\x1b\r"]);
+    runKeys(picker, ["/", "t", "w", KEYMAP["tui.select.confirm"]]);
     const codeView = picker.render(80).join("\n");
     assert.ok(codeView.includes("Located"));
     assert.ok(codeView.includes("Selected"));

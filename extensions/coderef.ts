@@ -72,7 +72,7 @@ const MESSAGES = {
     fileHint: "up/down choose · Tab complete+open · Enter open · Esc cancel",
     selected: (s: number, e: number, n: number) => `Selected ${s}-${e} (${n} lines)`,
     located: (n: number) => `◉ Located: line ${n}`,
-    searchHint: "· Enter next · Alt+Enter pin · Esc exit",
+    searchHint: "· Enter locate · Esc exit",
     noMatch: "(no match)",
     largeWarn: (n: number) =>
       `⚠ Selection over 200 lines (${n} total) - press Enter again to confirm`,
@@ -94,7 +94,7 @@ const MESSAGES = {
     fileHint: "↑↓ 选择 · Tab 补全并打开 · Enter 打开 · Esc 取消",
     selected: (s: number, e: number, n: number) => `已选 ${s}-${e} 行（${n} 行）`,
     located: (n: number) => `◉ 已定位：第 ${n} 行`,
-    searchHint: "· Enter 下一个 · Alt+Enter 定位 · Esc 退出",
+    searchHint: "· Enter 定位 · Esc 退出",
     noMatch: "(无匹配)",
     largeWarn: (n: number) =>
       `⚠ 选区超过 200 行（共 ${n} 行），再按一次 Enter 确认发送`,
@@ -706,19 +706,20 @@ export function createCodeRefPicker(
   };
 
   const handleCodeSearchInput = (data: string, printable: string | null): boolean => {
-    if (matchesKey(data, "alt+enter")) {
-      locatedLine = selection.cursor;
+    const leaveSearch = () => {
       codeSearchActive = false;
       if (codeSearchText) lastSearchText = codeSearchText;
-    } else if (keybindings.matches(data, "tui.select.cancel")) {
-      codeSearchActive = false;
-      if (codeSearchText) lastSearchText = codeSearchText;
+    };
+    if (keybindings.matches(data, "tui.select.cancel")) {
+      leaveSearch();
     } else if (matchesKey(data, "ctrl+u")) {
       pageDown(-HALF_PAGE_LINES);
     } else if (matchesKey(data, "ctrl+d")) {
       pageDown(HALF_PAGE_LINES);
     } else if (keybindings.matches(data, "tui.select.confirm")) {
-      jumpToMatch(codeSearchText, 1);
+      // Enter: accept the current match, leave search, then n/N walk the matches.
+      locatedLine = selection.cursor;
+      leaveSearch();
     } else if (matchesKey(data, "backspace")) {
       codeSearchText = codeSearchText.slice(0, -1);
       jumpToNearestMatch();

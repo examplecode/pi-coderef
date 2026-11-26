@@ -36,8 +36,8 @@ Run **`/coderef`** in pi (or press **`Alt+P`**; `/pick` is an alias):
 | `Ctrl+F` / `Ctrl+B` | Move a full page down / up |
 | `g` / `G` | Jump to the top / the last line |
 | `/` | Search inside the file: live jump, highlighted matches |
+| `Enter` (while searching) | Accept the match, leave search, and pin it with `◉` |
 | `n` / `N` | Jump to the next / previous search match |
-| `Alt+Enter` | While searching: accept the position and pin it with `◉` |
 | `space` | Mark the selection start / press again to fix the end (no mark = current line) |
 | `Enter` | Confirm → the reference is inserted into the prompt |
 | `Esc` | Go back / cancel, one level at a time |
@@ -115,8 +115,8 @@ pi install git:github.com/examplecode/pi-coderef@v1
 | `Ctrl+F` / `Ctrl+B` | 下移 / 上移整页 |
 | `g` / `G` | 跳到文件顶部 / 最后一行 |
 | `/` | 文件内搜索：边输入边跳转，匹配文本高亮 |
+| `Enter`（搜索中） | 接受当前匹配、退出搜索，并标记 `◉ 已定位` |
 | `n` / `N` | 跳到下一个 / 上一个匹配 |
-| `Alt+Enter` | 搜索中：接受当前位置并标记 `◉ 已定位` |
 | `space` | 标记选区起点 / 第二次按下固定终点（不标记则选中光标行） |
 | `Enter` | 确认 → 引用插入输入框 |
 | `Esc` | 逐级返回 / 取消 |
