@@ -340,6 +340,12 @@ export interface SelectionRange {
 export interface LineSelection {
   readonly cursor: number;
   move(delta: number, lineCount: number): void;
+  /** Places the cursor on an absolute line (used by mouse selection). */
+  setCursor(index: number, lineCount: number): void;
+  /** Starts a range at an absolute line, anchoring the mark there. */
+  startRangeAt(index: number, lineCount: number): void;
+  /** Freezes the live range, keeping it as the confirmed selection. */
+  freezeRange(): void;
   toggleMark(): void;
   range(): SelectionRange;
 }
@@ -359,9 +365,26 @@ export function createLineSelection(): LineSelection {
     move(delta: number, lineCount: number) {
       cursor = Math.max(0, Math.min(lineCount - 1, cursor + delta));
     },
+    setCursor(index: number, lineCount: number) {
+      cursor = Math.max(0, Math.min(lineCount - 1, index));
+    },
+    startRangeAt(index: number, lineCount: number) {
+      cursor = Math.max(0, Math.min(lineCount - 1, index));
+      mark = cursor;
+      frozenRange = null;
+    },
+    freezeRange() {
+      if (mark !== null) {
+        frozenRange = normalize(mark, cursor);
+        mark = null;
+      }
+    },
     toggleMark() {
       if (frozenRange) {
+        // A confirmed range exists (e.g. from a mouse drag): start a fresh mark
+        // right away instead of making the user press twice.
         frozenRange = null;
+        mark = cursor;
         return;
       }
       if (mark === null) {
@@ -449,6 +472,9 @@ export function createCodeRefPicker(
 
   let cachedWidth = -1;
   let cachedLines: string[] = [];
+  let renderedFirstLine = 0;
+  let renderedCodeRows = 0;
+  let dragAnchorLine: number | null = null;
 
   const invalidate = () => {
     cachedWidth = -1;
@@ -618,6 +644,8 @@ export function createCodeRefPicker(
       Math.min(selection.cursor - 10, Math.max(0, codeLines.length - visibleRows)),
     );
     const lastVisible = Math.min(codeLines.length, firstVisible + visibleRows);
+    renderedFirstLine = firstVisible;
+    renderedCodeRows = lastVisible - firstVisible;
     ensureHighlighted(firstVisible, lastVisible - 1);
     for (let i = firstVisible; i < lastVisible; i++) {
       const marker =
@@ -787,7 +815,63 @@ export function createCodeRefPicker(
     return true;
   };
 
+  /** Code-view layout: row 0 is the file header, then one row per visible code line. */
+  const lineAtMouseRow = (y: number): number | null => {
+    const offset = y - 1;
+    if (offset < 0 || offset >= renderedCodeRows) return null;
+    return renderedFirstLine + offset;
+  };
+
+  const handleCodeViewMouse = (event: {
+    type: string;
+    button: string;
+    y: number;
+    wheelDelta?: number;
+  }): { handled?: boolean; capture?: boolean } | undefined => {
+    if (view !== "code") return undefined;
+    if (event.button !== "left" && event.type !== "wheel") return undefined;
+
+    if (event.type === "wheel") {
+      const delta = event.wheelDelta ?? 0;
+      if (delta === 0) return undefined;
+      selection.move(delta * 3, codeLines.length);
+      awaitingConfirm = false;
+      invalidate();
+      tui.requestRender();
+      return { handled: true };
+    }
+
+    const line = lineAtMouseRow(event.y);
+    if (line === null) return undefined;
+
+    if (event.type === "press") {
+      dragAnchorLine = line;
+      selection.startRangeAt(line, codeLines.length);
+      awaitingConfirm = false;
+    } else if (event.type === "drag") {
+      if (dragAnchorLine === null) return undefined;
+      selection.setCursor(line, codeLines.length);
+      awaitingConfirm = false;
+    } else if (event.type === "release") {
+      if (dragAnchorLine === null) return undefined;
+      selection.setCursor(line, codeLines.length);
+      selection.freezeRange();
+      dragAnchorLine = null;
+      awaitingConfirm = false;
+    } else {
+      return undefined;
+    }
+    invalidate();
+    tui.requestRender();
+    return { handled: true, capture: true };
+  };
+
   return {
+    /** Keep PageUp/PageDown (viewport scrolling keys) inside the picker. */
+    capturesViewportInput: true,
+
+    handleMouse: handleCodeViewMouse,
+
     render(width: number): string[] {
       if (cachedLines.length > 0 && cachedWidth === width) return cachedLines;
       cachedWidth = width;

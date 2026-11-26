@@ -7,6 +7,9 @@
 - New: `g` jumps to the top of the file, `G` jumps to the last line
 - Changed: in search mode `Enter` now accepts the match, leaves search and pins it; `n`/`N` then walk the matches
 - Removed: `Alt+Enter` (superseded by `Enter`)
+- New: mouse selection — click a line and drag to select a range; mouse wheel scrolls the code view
+- New: `space` after a mouse selection starts a fresh mark in one press
+- Fix: the picker claims viewport keys, so `PageUp`/`PageDown` now page the code view instead of scrolling the transcript
 - Hint bar split into two lines so every shortcut stays visible on narrow terminals
 - Fix: removal of the 5000-line display cap. Every line is now reachable; large files open instantly because only the visible window is highlighted, in the background
 - Fix: the code view no longer blocks on syntax highlighting (3 ms to open a 30k-line file)

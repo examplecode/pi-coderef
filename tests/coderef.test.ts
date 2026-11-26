@@ -886,6 +886,98 @@ test("g and G work when the terminal encodes letters (Kitty mode)", async () => 
   assert.equal(result?.startLine, 1);
 });
 
+// ---- mouse selection ----
+
+function mouseEvent(overrides: Record<string, unknown>) {
+  return {
+    type: "press",
+    button: "left",
+    x: 4,
+    y: 2,
+    screenX: 4,
+    screenY: 2,
+    width: 80,
+    height: 30,
+    shift: false,
+    alt: false,
+    ctrl: false,
+    ...overrides,
+  } as never;
+}
+
+test("dragging with the mouse selects a line range and Enter sends it", async () => {
+  const content = Array.from({ length: 60 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]); // open, first code row is screen row 1
+  picker.render(80);
+
+  // press on the 3rd code line (y = 1 + 2), drag to the 6th (y = 1 + 5), release
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 3 }));
+  picker.handleMouse?.(mouseEvent({ type: "drag", y: 6 }));
+  picker.handleMouse?.(mouseEvent({ type: "release", y: 6 }));
+  picker.render(80);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 3);
+  assert.equal(result?.endLine, 6);
+  assert.equal(result?.code, "line2\nline3\nline4\nline5");
+});
+
+test("a mouse press outside the code rows is ignored", async () => {
+  const content = Array.from({ length: 10 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  picker.render(80);
+
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 0 })); // file header row
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 29 })); // status area
+  picker.render(80);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 1); // untouched: the cursor line
+});
+
+test("mouse selection is replaced by a later space marking", async () => {
+  const content = Array.from({ length: 60 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  picker.render(80);
+
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 2 }));
+  picker.handleMouse?.(mouseEvent({ type: "drag", y: 4 }));
+  picker.handleMouse?.(mouseEvent({ type: "release", y: 4 }));
+  picker.render(80);
+
+  // one space press must replace the mouse range (cursor sits on line 4 after release)
+  runKeys(picker, [" ", "j", " "]);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 4);
+  assert.equal(result?.endLine, 5);
+});
+
+test("the picker claims viewport keys so PageUp/PageDown reach it", () => {
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, {
+    list: async () => [],
+    read: () => "",
+  });
+  assert.equal((picker as { capturesViewportInput?: boolean }).capturesViewportInput, true);
+});
+
 // ---- syntax highlighting ----
 
 test("code view highlights TypeScript syntax with pi theme tokens", async () => {

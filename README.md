@@ -39,8 +39,12 @@ Run **`/coderef`** in pi (or press **`Alt+P`**; `/pick` is an alias):
 | `Enter` (while searching) | Accept the match, leave search, and pin it with `◉` |
 | `n` / `N` | Jump to the next / previous search match |
 | `space` | Mark the selection start / press again to fix the end (no mark = current line) |
+| **mouse drag** | Drag over code lines to select a range (click sets the line, drag extends it) |
+| mouse wheel | Scroll the code view |
 | `Enter` | Confirm → the reference is inserted into the prompt |
 | `Esc` | Go back / cancel, one level at a time |
+
+Selection works with the keyboard (`space`) or the mouse (drag over lines). Mouse support needs a terminal that reports mouse events to pi (pi's fullscreen mode does).
 
 Navigation follows Vim (`j`/`k`, `Ctrl+D`/`Ctrl+U`, `Ctrl+F`/`Ctrl+B`, `g`/`G`).
 
@@ -83,7 +87,9 @@ MIT
 
 适合的场景：让 agent 重构某段代码、修某个函数的 bug、解释某几行 —— 你只需要"指"给它看。
 
-代码视图只读，并使用 pi 自带主题配色做**语法高亮**，看到的颜色与 pi 内一致。导航遵循 Vim 习惯：`j`/`k`、`Ctrl+D`/`Ctrl+U`、`Ctrl+F`/`Ctrl+B`、`g`/`G`，以及 `/` 搜索后 `n`/`N` 跳转。
+代码视图只读，并使用 pi 自带主题配色做**语法高亮**，看到的颜色与 pi 内一致。选区既可以用键盘（`space`）标记，也可以**直接用鼠标拖拽**（需要终端把鼠标事件交给 pi，pi 的 fullscreen 模式默认如此）。
+
+导航遵循 Vim 习惯：`j`/`k`、`Ctrl+D`/`Ctrl+U`、`Ctrl+F`/`Ctrl+B`、`g`/`G`，以及 `/` 搜索后 `n`/`N` 跳转。
 
 ## 安装
 
@@ -118,6 +124,8 @@ pi install git:github.com/examplecode/pi-coderef@v1
 | `Enter`（搜索中） | 接受当前匹配、退出搜索，并标记 `◉ 已定位` |
 | `n` / `N` | 跳到下一个 / 上一个匹配 |
 | `space` | 标记选区起点 / 第二次按下固定终点（不标记则选中光标行） |
+| **鼠标拖拽** | 在代码行上拖动即可选定范围（单击定位、拖动扩展） |
+| 鼠标滚轮 | 滚动代码视图 |
 | `Enter` | 确认 → 引用插入输入框 |
 | `Esc` | 逐级返回 / 取消 |
 
