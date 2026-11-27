@@ -1047,6 +1047,29 @@ test("the file list highlight also falls back to inverse video", async () => {
   assert.ok(rows.some((line) => line.includes("<inv>") && line.includes("aaa.ts")));
 });
 
+test("dragging does not scroll the view, so the selection cannot run away", async () => {
+  const content = Array.from({ length: 200 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  const tui = { requestRender() {}, terminal: { rows: 30, columns: 80 } };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(tui, fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  picker.render(80);
+
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 12 })); // line 12
+  picker.render(80);
+  picker.handleMouse?.(mouseEvent({ type: "drag", y: 20 })); // 8 rows lower -> line 20
+  picker.handleMouse?.(mouseEvent({ type: "release", y: 20 }));
+  picker.render(80);
+
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 12);
+  assert.equal(result?.endLine, 20, "the window must stay pinned while dragging");
+});
+
 // ---- syntax highlighting ----
 
 test("code view highlights TypeScript syntax with pi theme tokens", async () => {

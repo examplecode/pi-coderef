@@ -490,6 +490,7 @@ export function createCodeRefPicker(
   let renderedFirstLine = 0;
   let renderedCodeRows = 0;
   let dragAnchorLine: number | null = null;
+  let pinnedFirstLine: number | null = null;
 
   const invalidate = () => {
     cachedWidth = -1;
@@ -654,10 +655,11 @@ export function createCodeRefPicker(
       3,
       (tui.terminal?.rows ?? 30) - HOST_CHROME_ROWS - 1 /* file header */ - statusRows,
     );
-    const firstVisible = Math.max(
+    const centered = Math.max(
       0,
       Math.min(selection.cursor - 10, Math.max(0, codeLines.length - visibleRows)),
     );
+    const firstVisible = pinnedFirstLine ?? centered;
     const lastVisible = Math.min(codeLines.length, firstVisible + visibleRows);
     renderedFirstLine = firstVisible;
     renderedCodeRows = lastVisible - firstVisible;
@@ -864,6 +866,7 @@ export function createCodeRefPicker(
 
     if (event.type === "press") {
       dragAnchorLine = line;
+      pinnedFirstLine = renderedFirstLine;
       selection.startRangeAt(line, codeLines.length);
       awaitingConfirm = false;
     } else if (event.type === "drag") {
@@ -875,6 +878,7 @@ export function createCodeRefPicker(
       selection.setCursor(line, codeLines.length);
       selection.freezeRange();
       dragAnchorLine = null;
+      pinnedFirstLine = null;
       awaitingConfirm = false;
     } else {
       return undefined;
