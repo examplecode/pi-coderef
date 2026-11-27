@@ -1070,6 +1070,30 @@ test("dragging does not scroll the view, so the selection cannot run away", asyn
   assert.equal(result?.endLine, 20, "the window must stay pinned while dragging");
 });
 
+test("releasing the mouse does not scroll the view", async () => {
+  const content = Array.from({ length: 200 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  const tui = { requestRender() {}, terminal: { rows: 30, columns: 80 } };
+  const picker = createCodeRefPicker(tui, fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  picker.render(80);
+
+  const firstCodeLineOf = () =>
+    picker
+      .render(80)
+      .map((line) => /^[▸⌕▌ ]\s+(\d{1,4}) /.exec(line))
+      .find((m) => m !== null)?.[1] ?? "";
+
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 12 }));
+  picker.handleMouse?.(mouseEvent({ type: "drag", y: 22 }));
+  const beforeRelease = firstCodeLineOf();
+  picker.handleMouse?.(mouseEvent({ type: "release", y: 22 }));
+  const afterRelease = firstCodeLineOf();
+
+  assert.equal(afterRelease, beforeRelease, "the first visible line must not change on release");
+});
+
 // ---- syntax highlighting ----
 
 test("code view highlights TypeScript syntax with pi theme tokens", async () => {

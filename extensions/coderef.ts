@@ -781,31 +781,42 @@ export function createCodeRefPicker(
   };
 
   const handleCodeViewInput = (data: string, printable: string | null): boolean => {
+    const releaseViewportPin = () => {
+      pinnedFirstLine = null;
+    };
     if (codeSearchActive) return handleCodeSearchInput(data, printable);
     if (printable === "/") {
       codeSearchActive = true;
       codeSearchText = "";
       noMatches = false;
     } else if (printable === "g") {
+      releaseViewportPin();
       selection.move(-selection.cursor, codeLines.length);
       awaitingConfirm = false;
     } else if (printable === "G") {
+      releaseViewportPin();
       selection.move(codeLines.length - 1 - selection.cursor, codeLines.length);
       awaitingConfirm = false;
     } else if (printable === "n") {
+      releaseViewportPin();
       if (lastSearchText) jumpToMatch(lastSearchText, 1);
     } else if (printable === "N") {
+      releaseViewportPin();
       if (lastSearchText) jumpToMatch(lastSearchText, -1);
     } else if (keybindings.matches(data, "tui.select.up") || printable === "k") {
+      releaseViewportPin();
       selection.move(-1, codeLines.length);
       awaitingConfirm = false;
     } else if (keybindings.matches(data, "tui.select.down") || printable === "j") {
+      releaseViewportPin();
       selection.move(1, codeLines.length);
       awaitingConfirm = false;
     } else if (keybindings.matches(data, "tui.select.pageUp") || matchesKey(data, "ctrl+b")) {
+      releaseViewportPin();
       selection.move(-PAGE_LINES, codeLines.length);
       awaitingConfirm = false;
     } else if (keybindings.matches(data, "tui.select.pageDown") || matchesKey(data, "ctrl+f")) {
+      releaseViewportPin();
       selection.move(PAGE_LINES, codeLines.length);
       awaitingConfirm = false;
     } else if (matchesKey(data, "ctrl+u")) {
@@ -878,7 +889,7 @@ export function createCodeRefPicker(
       selection.setCursor(line, codeLines.length);
       selection.freezeRange();
       dragAnchorLine = null;
-      pinnedFirstLine = null;
+      // Keep the viewport where the user released it; keyboard navigation re-centers.
       awaitingConfirm = false;
     } else {
       return undefined;
