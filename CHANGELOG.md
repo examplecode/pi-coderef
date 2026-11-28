@@ -7,7 +7,8 @@
 - New: `g` jumps to the top of the file, `G` jumps to the last line
 - Changed: in search mode `Enter` now accepts the match, leaves search and pins it; `n`/`N` then walk the matches
 - Removed: `Alt+Enter` (superseded by `Enter`)
-- New: mouse selection — click a line and drag to select a range; mouse wheel scrolls the code view
+- New: mouse selection — click a line and drag to select a range
+- New: mouse wheel scrolls the code view and moves the file-list selection
 - Fix: the code view no longer scrolls during a mouse drag, and no longer jumps when the mouse is released (the viewport only re-centers on keyboard navigation)
 - New: selected lines are highlighted; the file list highlight now works on every theme (pi's "system" theme carries no background colors, so inverse video is used as a fallback)
 - New: `space` after a mouse selection starts a fresh mark in one press

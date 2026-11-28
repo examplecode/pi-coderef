@@ -1094,6 +1094,39 @@ test("releasing the mouse does not scroll the view", async () => {
   assert.equal(afterRelease, beforeRelease, "the first visible line must not change on release");
 });
 
+test("the mouse wheel scrolls the code view", async () => {
+  const content = Array.from({ length: 200 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  let result: CodeRef | undefined;
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), (ref) => {
+    result = ref;
+  }, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  picker.render(80);
+
+  picker.handleMouse?.(mouseEvent({ type: "wheel", button: "none", wheelDelta: 1 }));
+  picker.handleMouse?.(mouseEvent({ type: "wheel", button: "none", wheelDelta: 1 }));
+  picker.render(80);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  assert.equal(result?.startLine, 7); // 2 notches x 3 lines
+});
+
+test("the mouse wheel moves the file list selection", async () => {
+  const source = { list: async () => ["a.ts", "b.ts", "c.ts"], read: () => "x\n" };
+  const picker = createCodeRefPicker(fakeTui(), fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  picker.render(80);
+
+  picker.handleMouse?.(mouseEvent({ type: "wheel", button: "none", wheelDelta: 1 }));
+  picker.handleMouse?.(mouseEvent({ type: "wheel", button: "none", wheelDelta: 1 }));
+  const rows = picker.render(80);
+  assert.ok(rows.some((line) => line.includes("<selectedBg>▸ c.ts") || line.includes("<b>▸ c.ts")));
+
+  picker.handleMouse?.(mouseEvent({ type: "wheel", button: "none", wheelDelta: -1 }));
+  assert.ok(picker.render(80).some((line) => line.includes("▸ b.ts")));
+});
+
 // ---- syntax highlighting ----
 
 test("code view highlights TypeScript syntax with pi theme tokens", async () => {

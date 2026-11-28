@@ -859,18 +859,25 @@ export function createCodeRefPicker(
     y: number;
     wheelDelta?: number;
   }): { handled?: boolean; capture?: boolean } | undefined => {
-    if (view !== "code") return undefined;
-    if (event.button !== "left" && event.type !== "wheel") return undefined;
-
     if (event.type === "wheel") {
       const delta = event.wheelDelta ?? 0;
       if (delta === 0) return undefined;
-      selection.move(delta * 3, codeLines.length);
-      awaitingConfirm = false;
+      if (view === "files") {
+        if (!filesReady || matchedFiles.length === 0) return undefined;
+        selectedFileIndex = Math.max(
+          0,
+          Math.min(matchedFiles.length - 1, selectedFileIndex + delta),
+        );
+      } else {
+        selection.move(delta * 3, codeLines.length);
+        awaitingConfirm = false;
+      }
       invalidate();
       tui.requestRender();
       return { handled: true };
     }
+    if (view !== "code") return undefined;
+    if (event.button !== "left") return undefined;
 
     const line = lineAtMouseRow(event.y);
     if (line === null) return undefined;

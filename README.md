@@ -40,7 +40,7 @@ Run **`/coderef`** in pi (or press **`Alt+P`**; `/pick` is an alias):
 | `n` / `N` | Jump to the next / previous search match |
 | `space` | Mark the selection start / press again to fix the end (no mark = current line) |
 | **mouse drag** | Drag over code lines to select a range (click sets the line, drag extends it) |
-| mouse wheel | Scroll the code view |
+| mouse wheel | Scroll the code view / move the file-list selection |
 | `Enter` | Confirm → the reference is inserted into the prompt |
 | `Esc` | Go back / cancel, one level at a time |
 
@@ -125,7 +125,7 @@ pi install git:github.com/examplecode/pi-coderef@v1
 | `n` / `N` | 跳到下一个 / 上一个匹配 |
 | `space` | 标记选区起点 / 第二次按下固定终点（不标记则选中光标行） |
 | **鼠标拖拽** | 在代码行上拖动即可选定范围（单击定位、拖动扩展） |
-| 鼠标滚轮 | 滚动代码视图 |
+| 鼠标滚轮 | 滚动代码视图 / 移动文件列表选中项 |
 | `Enter` | 确认 → 引用插入输入框 |
 | `Esc` | 逐级返回 / 取消 |
 
