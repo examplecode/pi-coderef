@@ -869,6 +869,9 @@ export function createCodeRefPicker(
           Math.min(matchedFiles.length - 1, selectedFileIndex + delta),
         );
       } else {
+        // Wheel scrolling must also let the viewport follow the cursor again,
+        // otherwise a previous mouse selection would pin it in place.
+        pinnedFirstLine = null;
         selection.move(delta * 3, codeLines.length);
         awaitingConfirm = false;
       }

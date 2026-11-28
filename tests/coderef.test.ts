@@ -1127,6 +1127,38 @@ test("the mouse wheel moves the file list selection", async () => {
   assert.ok(picker.render(80).some((line) => line.includes("▸ b.ts")));
 });
 
+test("the wheel scrolls the view again after a mouse selection", async () => {
+  const content = Array.from({ length: 300 }, (_, i) => `line${i}`).join("\n");
+  const source = { list: async () => ["a.ts"], read: () => content };
+  const tui = { requestRender() {}, terminal: { rows: 30, columns: 80 } };
+  const picker = createCodeRefPicker(tui, fakeTheme(), fakeKeybindings(), () => {}, source);
+  await waitReady(picker);
+  runKeys(picker, [KEYMAP["tui.select.confirm"]]);
+  picker.render(80);
+
+  const firstVisible = () => {
+    for (const line of picker.render(80)) {
+      const m = /^[▸⌕▌ ]\s+(\d{1,4}) /.exec(line);
+      if (m) return Number(m[1]);
+    }
+    return -1;
+  };
+
+  picker.handleMouse?.(mouseEvent({ type: "press", y: 20 }));
+  picker.handleMouse?.(mouseEvent({ type: "drag", y: 24 }));
+  picker.handleMouse?.(mouseEvent({ type: "release", y: 24 }));
+  const pinnedTop = firstVisible();
+
+  picker.handleMouse?.(mouseEvent({ type: "wheel", button: "none", wheelDelta: 1 }));
+  picker.handleMouse?.(mouseEvent({ type: "wheel", button: "none", wheelDelta: 1 }));
+  const scrolledTop = firstVisible();
+
+  assert.ok(
+    scrolledTop > pinnedTop,
+    `the view must scroll after a mouse selection (top ${pinnedTop} -> ${scrolledTop})`,
+  );
+});
+
 // ---- syntax highlighting ----
 
 test("code view highlights TypeScript syntax with pi theme tokens", async () => {
